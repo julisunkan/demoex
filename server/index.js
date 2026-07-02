@@ -10,7 +10,13 @@ import { seedDataFiles } from "./lib/seed.js";
 const PORT = Number(process.env.PORT || process.env.API_PORT || 3001);
 const app  = express();
 
-app.use(cors({ origin: true }));
+// In production, restrict CORS to the deployed frontend URL.
+// Set FRONTEND_URL in your Render environment variables.
+// Falls back to allowing all origins in development.
+const CORS_ORIGIN = process.env.NODE_ENV === "production" && process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL
+  : true;
+app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json({ limit: "10mb" }));
 
 app.use("/api/saas",        saasRouter);
@@ -24,6 +30,19 @@ app.get("/",           (_req, res) => res.send("Financial Data Analyzer API is r
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 const HOST = "0.0.0.0";
+
+// In production, warn loudly about missing critical env vars.
+// The server still starts so Render's health check can pass, but these
+// warnings appear immediately in logs so misconfiguration is obvious.
+if (process.env.NODE_ENV === "production") {
+  const required = ["AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "ADMIN_PASSWORD", "SESSION_SECRET", "FRONTEND_URL"];
+  const missing  = required.filter((k) => !process.env[k]);
+  if (missing.length) {
+    console.error("❌ PRODUCTION MISCONFIGURATION — missing required env vars:");
+    missing.forEach((k) => console.error(`   • ${k}`));
+    console.error("Set these in Render → financial-data-analyzer-api → Environment.");
+  }
+}
 
 app.listen(PORT, HOST, () => {
   console.log(`🚀 API running on http://localhost:${PORT}`);
@@ -41,5 +60,9 @@ app.listen(PORT, HOST, () => {
       "⚠️  Azure credentials not set. Set AZURE_TENANT_ID, AZURE_CLIENT_ID, " +
       "and AZURE_CLIENT_SECRET to enable Microsoft subscription verification."
     );
+  }
+
+  if (process.env.NODE_ENV === "production" && !process.env.FRONTEND_URL) {
+    console.warn("⚠️  FRONTEND_URL not set — CORS is open to all origins. Set FRONTEND_URL to your deployed frontend URL.");
   }
 });

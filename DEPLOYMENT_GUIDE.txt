@@ -205,37 +205,62 @@ STEP 3.1 — Push your code to GitHub
         git remote add origin https://github.com/YOUR_USERNAME/financial-data-analyzer.git
         git push -u origin main
 
-STEP 3.2 — Create the Backend Web Service on Render
+STEP 3.2 — Deploy using render.yaml (recommended — fastest path)
+  The project includes a render.yaml that pre-configures both services.
   → Go to https://render.com and sign in
+  → Click "New +" → "Blueprint"
+  → Connect your GitHub repository
+  → Render detects render.yaml automatically and shows both services:
+        financial-data-analyzer-api  (Web Service — Node backend)
+        financial-data-analyzer-app  (Static Site — React frontend)
+  → Render prompts you for env vars marked sync:false (the secrets).
+    Fill in at minimum:
+        AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
+        ADMIN_PASSWORD, SESSION_SECRET
+        FRONTEND_URL       → set AFTER the static site URL is known (Step 3.3)
+        VITE_API_URL       → set AFTER the backend URL is known (Step 3.2)
+        VITE_AZURE_CLIENT_ID
+  → Click "Create new resources"
+  → Wait for both deploys to complete (~5-8 minutes on first run)
+  → After both are live, update FRONTEND_URL and VITE_API_URL with the real
+    URLs and trigger a redeploy so the values take effect.
+
+  Alternatively, create services manually:
+
+STEP 3.2a — Create the Backend Web Service manually (if not using Blueprint)
   → Click "New +" → "Web Service"
   → Connect your GitHub account and select your repository
   → Configure:
         Name:           financial-data-analyzer-api
-        Region:         Choose one closest to your users (e.g., Oregon for US)
+        Region:         Oregon (US West) or closest to your users
         Branch:         main
         Runtime:        Node
-        Build Command:  cd server && npm install
+        Build Command:  npm install --prefix server
         Start Command:  node server/index.js
-        Instance Type:  Starter ($7/month) or Free (has 15-min sleep)
+        Instance Type:  Starter ($7/month) — Free tier has 15-min cold starts
+        Health Check Path: /api/health
   → Click "Advanced" to add environment variables (see Part 4 below)
   → Click "Create Web Service"
   → Wait for the first deploy to complete (~3-5 minutes)
   → Copy the URL shown (e.g., https://financial-data-analyzer-api.onrender.com)
     This is your BACKEND URL — you need it for Part 4.
 
-STEP 3.3 — Create the Frontend Static Site on Render
+STEP 3.3 — Create the Frontend Static Site manually (if not using Blueprint)
   → Click "New +" → "Static Site"
   → Select the same GitHub repository
   → Configure:
-        Name:           financial-data-analyzer-app
-        Branch:         main
-        Build Command:  npm install && npm run build
-        Publish Directory: dist
+        Name:             financial-data-analyzer-app
+        Branch:           main
+        Build Command:    npm install && npm run build
+        Publish Directory: dist/public
+  → Under "Redirects/Rewrites", add a rewrite rule:
+        Source: /*    →    Destination: /index.html
+    (Required for React Router — without this, direct URL navigation returns 404)
   → Click "Advanced" to add environment variables (see Part 4 below)
   → Click "Create Static Site"
-  → Wait for the build to complete (~2-3 minutes)
+  → Wait for the build to complete (~3-5 minutes)
   → Copy the URL shown (e.g., https://financial-data-analyzer-app.onrender.com)
-    This is your FRONTEND URL — update manifest.xml with this.
+    This is your FRONTEND URL — update manifest.xml and FRONTEND_URL with this.
 
 STEP 3.4 — Update Azure redirect URIs with your real URLs
   → Go back to your Azure App Registration → "Authentication"
@@ -328,6 +353,8 @@ SETTING VARIABLES IN REPLIT (for local development)
   → Add each variable with the same names as above
   → For VITE_ variables, also add them as Replit Secrets — Vite picks them
     up automatically during development
+  → A complete .env.example file is included in the project root — it lists
+    every variable with a description. Copy it to .env for local development.
 
 --------------------------------------------------------------------------------
 PART 5 — MICROSOFT PARTNER CENTER: CREATE YOUR APPSOURCE OFFER

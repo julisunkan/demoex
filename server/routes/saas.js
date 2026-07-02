@@ -35,7 +35,7 @@ function saveLicenses(licenses) {
   renameSync(tmp, LIC_FILE);
 }
 function generateLicenseKey() {
-  return "BSA-" + randomBytes(12).toString("hex").toUpperCase();
+  return "FDA-" + randomBytes(12).toString("hex").toUpperCase();
 }
 function planDaysFromId(planId) {
   const defaults = { monthly: 30, quarterly: 90, biannual: 180, annual: 365 };

@@ -16,11 +16,11 @@
 
   <Description DefaultValue="Analyze financial data, categorize transactions, track budgets, and export reports. Free &amp; Pro plans available — get it on Microsoft AppSource."/>
 
-  <IconUrl DefaultValue="https://f9c54bff-d028-4dbd-bef2-94a4294151b9-00-226leqeczdzxf.worf.replit.dev/icon-32.png"/>
+  <IconUrl DefaultValue="https://YOUR_FRONTEND_URL/icon-32.png"/>
 
-  <HighResolutionIconUrl DefaultValue="https://f9c54bff-d028-4dbd-bef2-94a4294151b9-00-226leqeczdzxf.worf.replit.dev/icon-80.png"/>
+  <HighResolutionIconUrl DefaultValue="https://YOUR_FRONTEND_URL/icon-80.png"/>
 
-  <SupportUrl DefaultValue="https://f9c54bff-d028-4dbd-bef2-94a4294151b9-00-226leqeczdzxf.worf.replit.dev/support"/>
+  <SupportUrl DefaultValue="https://YOUR_FRONTEND_URL/support"/>
 
   <Hosts>
     <Host Name="Workbook"/>
@@ -33,7 +33,7 @@
   </Requirements>
 
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://f9c54bff-d028-4dbd-bef2-94a4294151b9-00-226leqeczdzxf.worf.replit.dev"/>
+    <SourceLocation DefaultValue="https://YOUR_FRONTEND_URL"/>
   </DefaultSettings>
 
   <Permissions>ReadWriteDocument</Permissions>

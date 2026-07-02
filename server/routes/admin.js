@@ -35,7 +35,7 @@ function saveLicenses(licenses) {
 }
 
 function generateLicenseKey() {
-  return "BSA-" + randomBytes(12).toString("hex").toUpperCase();
+  return "FDA-" + randomBytes(12).toString("hex").toUpperCase();
 }
 
 // GET /api/admin/licenses

@@ -1,8 +1,11 @@
 {
-  "name": "excel-addin",
-  "version": "0.0.0",
+  "name": "financial-data-analyzer",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "node server/index.js & npx vite --config vite.config.ts --port 5000 --host 0.0.0.0",
     "build": "npx vite build --config vite.config.ts",
