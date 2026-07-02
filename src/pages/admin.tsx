@@ -24,6 +24,7 @@ interface Plan {
   label: string;
   price: number;
   days: number;
+  trialDays?: number;
 }
 
 interface EmailNotifyCfg {
@@ -707,8 +708,8 @@ function LicensesTab({ pw }: { pw: string }) {
 
 // ── Payment tab ───────────────────────────────────────────────────────────────
 const DEFAULT_PLANS: Plan[] = [
-  { id: "monthly", label: "Monthly", price: 19,  days: 30  },
-  { id: "annual",  label: "1-Year",  price: 199, days: 365 },
+  { id: "monthly", label: "Monthly", price: 19,  days: 30,  trialDays: 0 },
+  { id: "annual",  label: "1-Year",  price: 199, days: 365, trialDays: 0 },
 ];
 
 function PaymentTab({ pw, settings, onSaved }: { pw: string; settings: Settings; onSaved: (s: Settings) => void }) {
@@ -722,6 +723,14 @@ function PaymentTab({ pw, settings, onSaved }: { pw: string; settings: Settings;
 
   function updatePlanPrice(id: string, price: number) {
     setPlans((prev) => prev.map((p) => p.id === id ? { ...p, price } : p));
+  }
+
+  function togglePlanTrial(id: string, enabled: boolean) {
+    setPlans((prev) => prev.map((p) => p.id === id ? { ...p, trialDays: enabled ? 30 : 0 } : p));
+  }
+
+  function updatePlanTrialDays(id: string, trialDays: number) {
+    setPlans((prev) => prev.map((p) => p.id === id ? { ...p, trialDays } : p));
   }
 
   async function save() {
@@ -749,28 +758,71 @@ function PaymentTab({ pw, settings, onSaved }: { pw: string; settings: Settings;
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            {plans.map((plan) => (
-              <div key={plan.id} className="flex items-center gap-3 border border-border rounded-xl px-4 py-3 bg-muted/20">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{plan.label}</p>
-                  <p className="text-xs text-muted-foreground">{plan.days} days access</p>
+            {plans.map((plan) => {
+              const trialOn = (plan.trialDays ?? 0) > 0;
+              return (
+                <div key={plan.id} className="border border-border rounded-xl bg-muted/20 overflow-hidden">
+                  {/* Price row */}
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{plan.label}</p>
+                      <p className="text-xs text-muted-foreground">{plan.days} days access</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-xs text-muted-foreground">$</span>
+                      <Input
+                        type="number"
+                        min="1"
+                        step="0.5"
+                        value={plan.price}
+                        onChange={e => updatePlanPrice(plan.id, Number(e.target.value))}
+                        className="w-20 text-right font-mono font-semibold"
+                        data-testid={`input-plan-price-${plan.id}`}
+                      />
+                      <span className="text-xs text-muted-foreground">USD</span>
+                    </div>
+                  </div>
+                  {/* Free trial row */}
+                  <div className={`border-t border-dashed px-4 py-2.5 flex items-center gap-3 transition-colors ${trialOn ? "border-green-200 bg-green-50/60" : "border-border"}`}>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={trialOn}
+                      onClick={() => togglePlanTrial(plan.id, !trialOn)}
+                      data-testid={`toggle-trial-${plan.id}`}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${trialOn ? "bg-green-500" : "bg-muted-foreground/30"}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${trialOn ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
+                    <span className="text-xs font-medium text-foreground shrink-0">Free Trial</span>
+                    {trialOn && (
+                      <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={plan.trialDays ?? 30}
+                          onChange={e => updatePlanTrialDays(plan.id, Math.max(1, Math.min(365, Number(e.target.value))))}
+                          className="w-16 text-right font-mono text-xs h-7 px-2"
+                          data-testid={`input-trial-days-${plan.id}`}
+                        />
+                        <span className="text-xs text-muted-foreground">days</span>
+                      </div>
+                    )}
+                    {!trialOn && (
+                      <span className="text-xs text-muted-foreground ml-auto">Off</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-xs text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    value={plan.price}
-                    onChange={e => updatePlanPrice(plan.id, Number(e.target.value))}
-                    className="w-20 text-right font-mono font-semibold"
-                  />
-                  <span className="text-xs text-muted-foreground">USD</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <p className="text-xs text-muted-foreground">Tip: Offering a discounted annual plan encourages longer commitments and reduces churn.</p>
+          <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2.5 flex gap-2">
+            <svg className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p className="text-xs text-blue-800">
+              Free trial settings here are for reference — match them exactly in <strong>Partner Center → Plans → Free trial</strong> when configuring your AppSource offer. Microsoft enforces the trial period on their end.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
