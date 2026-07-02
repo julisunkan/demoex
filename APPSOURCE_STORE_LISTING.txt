@@ -1,0 +1,336 @@
+================================================================================
+  FINANCIAL DATA ANALYZER — MICROSOFT APPSOURCE STORE LISTING
+  Ready-to-paste content for Partner Center & Office Add-in submission
+================================================================================
+
+Last updated: July 2026
+
+This file contains all copy needed for:
+  A) The Microsoft AppSource SaaS offer listing (Partner Center)
+  B) The Office Add-in store listing (separate Partner Center submission)
+
+Read the notes in brackets before pasting — some fields have character limits.
+
+================================================================================
+SECTION 1 — OFFER IDENTITY
+================================================================================
+
+Offer ID (permanent, lowercase, no spaces):
+  financial-data-analyzer
+
+Offer alias (internal Partner Center name):
+  Financial Data Analyzer Pro
+
+Publisher display name:
+  Financial Data Analyzer
+
+App version:
+  2.0.0
+
+================================================================================
+SECTION 2 — SHORT SUMMARY
+================================================================================
+
+[AppSource limit: 255 characters. Used in search results and category pages.]
+
+Analyze financial data in Excel — auto-categorize transactions, track budgets,
+detect recurring charges, and export reports. Free plan included. Pro features
+unlocked via Microsoft AppSource subscription.
+
+[Character count: ~215]
+
+================================================================================
+SECTION 3 — FULL DESCRIPTION
+================================================================================
+
+[AppSource limit: 3,000 characters. Supports basic HTML in Partner Center.
+ Plain-text version below. Use the HTML version when the field accepts markup.]
+
+--- PLAIN TEXT VERSION ---
+
+Financial Data Analyzer turns Microsoft Excel into a powerful personal finance
+dashboard — no formulas, no pivot tables, no manual work required.
+
+Open the add-in, point it at your spreadsheet or paste a CSV export from your
+bank portal, and get an instant breakdown of where your money is going.
+
+WORKS IN SECONDS
+Financial Data Analyzer automatically detects your date, description, and
+amount columns — no configuration required. It supports debit/credit column
+formats, single-amount column formats, and Excel serial date values.
+
+FREE FEATURES (no subscription needed)
+• Analyze transactions from any bank or financial institution
+• Auto-categorize into 14 categories: Salary, Groceries, Food & Dining,
+  Transport, Fuel, Utilities, Shopping, Entertainment, Healthcare, Savings,
+  Investments, Loans, Education, and Rent & Housing
+• Monthly income vs. expense trend chart
+• Financial health score with personalized improvement tips
+• Month-over-month category spending comparison
+• Search, filter by category, type, and amount range
+• Top 5 largest individual expenses at a glance
+• Average daily and monthly spending stats
+• Income sources breakdown by category
+• Top merchants ranked by total spend
+• Flag transactions for manual review
+• Recategorize any transaction with one tap
+
+PRO FEATURES (AppSource subscription required)
+• Highlight Excel cells by spending category with automatic color coding
+• Export a formatted Excel summary sheet directly to your workbook
+• Download a categorized CSV file for further analysis in any tool
+• Export a color-coded PDF report, or email it directly from the add-in
+• Recurring subscription detector — automatically finds repeat charges
+• Duplicate transaction flagging with one-click review
+• Category budget tracker — set monthly budgets and track spending vs. target
+• Tax deduction tracker — tag transactions as tax-deductible and get your
+  total deductible amount instantly
+• Cash flow projection — estimates next month's income and expenses based on
+  your historical monthly averages
+• Full merchant spending report
+
+YOUR DATA NEVER LEAVES EXCEL
+All financial analysis happens locally inside your Excel session. No
+transaction data, bank credentials, or personal financial information is ever
+uploaded to any server. Your data stays completely private.
+
+PERFECT FOR
+• Personal monthly budget reviews
+• Tax preparation and deduction tracking
+• Freelancers and self-employed tracking income and business expenses
+• Business expense analysis and reporting
+• Anyone who wants to understand their spending without leaving Excel
+
+GETTING STARTED
+1. Install the add-in from Microsoft AppSource or the Excel Add-ins store
+2. Open any Excel sheet containing your bank data (or paste CSV text)
+3. Click "Analyze Active Sheet" — results appear in seconds
+4. Upgrade to Pro on AppSource to unlock export, budgets, and more
+
+Pro plans start at $5/month. Annual plans available at a discount.
+
+[Character count: ~2,450]
+
+--- HTML VERSION (for Partner Center rich text editor) ---
+
+<p><strong>Financial Data Analyzer</strong> turns Microsoft Excel into a powerful personal finance dashboard — no formulas, no pivot tables, no manual work required.</p>
+
+<p>Open the add-in, point it at your spreadsheet or paste a CSV export from your bank portal, and get an instant breakdown of where your money is going.</p>
+
+<h3>Works in Seconds</h3>
+<p>Automatically detects your date, description, and amount columns — no configuration required. Supports debit/credit column formats, single-amount formats, and Excel serial date values.</p>
+
+<h3>Free Features — No Subscription Needed</h3>
+<ul>
+  <li>Analyze transactions from any bank or financial institution</li>
+  <li>Auto-categorize into 14 categories (Salary, Groceries, Food &amp; Dining, Transport, Fuel, Utilities, Shopping, Entertainment, Healthcare, Savings, Investments, Loans, Education, Rent &amp; Housing)</li>
+  <li>Monthly income vs. expense trend chart</li>
+  <li>Financial health score with personalized tips</li>
+  <li>Month-over-month category comparison</li>
+  <li>Search and filter by category, type, and amount range</li>
+  <li>Top 5 largest individual expenses at a glance</li>
+  <li>Average daily and monthly spending stats</li>
+  <li>Income sources breakdown by category</li>
+  <li>Top merchants ranked by total spend</li>
+  <li>Flag and recategorize transactions</li>
+</ul>
+
+<h3>Pro Features — Unlock with AppSource Subscription</h3>
+<ul>
+  <li>Highlight Excel cells by spending category with color coding</li>
+  <li>Export a formatted Excel summary sheet to your workbook</li>
+  <li>Download a categorized CSV file</li>
+  <li>Export or email a color-coded PDF report</li>
+  <li>Recurring subscription detector</li>
+  <li>Duplicate transaction flagging</li>
+  <li>Category budget tracker with spending vs. target bars</li>
+  <li>Tax deduction tracker — tag and total tax-deductible expenses instantly</li>
+  <li>Cash flow projection based on your historical monthly averages</li>
+  <li>Full merchant spending report</li>
+</ul>
+
+<h3>Your Data Never Leaves Excel</h3>
+<p>All analysis happens locally. No transaction data is ever uploaded to any server. Your financial information stays completely private.</p>
+
+<p><strong>Pro plans start at $5/month.</strong> Annual plans available at a discount.</p>
+
+================================================================================
+SECTION 4 — SEARCH KEYWORDS
+================================================================================
+
+[AppSource allows up to 3 search keywords per listing. Choose carefully —
+ these directly affect discoverability. Pick the terms your target users
+ actually type when searching for this kind of tool.]
+
+RECOMMENDED (top 3 for AppSource submission):
+  1. bank statement analyzer
+  2. Excel transaction categorizer
+  3. personal finance tracker
+
+EXTENDED LIST (use for SEO, marketing copy, and ad campaigns):
+  • financial data analyzer
+  • Excel budget tracker
+  • transaction categorization
+  • expense tracker Excel
+  • bank statement Excel add-in
+  • spending analysis Excel
+  • Excel finance add-in
+  • monthly budget Excel
+  • income expense tracker
+  • Excel financial dashboard
+  • tax deduction tracker
+  • cash flow Excel
+  • expense report Excel
+  • bank CSV analyzer
+  • financial health score
+
+================================================================================
+SECTION 5 — CATEGORIES AND INDUSTRIES
+================================================================================
+
+Primary category:
+  Productivity → Office Add-ins
+
+Secondary category (if allowed):
+  Data Analytics → Finance
+
+Industries (optional, improves targeted discovery):
+  • Financial Services
+  • Professional Services
+  • Small & Medium Business
+
+================================================================================
+SECTION 6 — SUPPORT AND LEGAL URLS
+================================================================================
+
+[Replace YOUR-DOMAIN with your actual deployed domain before submitting.]
+
+Privacy policy URL:
+  https://YOUR-DOMAIN/privacy
+
+Support URL:
+  https://YOUR-DOMAIN/support
+
+End User License Agreement URL:
+  https://YOUR-DOMAIN/eula
+
+Landing page URL (for SaaS offer — this receives the AppSource purchase token):
+  https://YOUR-DOMAIN/landing
+
+Webhook URL (for SaaS offer — receives subscription lifecycle events):
+  https://YOUR-API-DOMAIN/api/saas/webhook
+
+================================================================================
+SECTION 7 — LOGO AND SCREENSHOT REQUIREMENTS
+================================================================================
+
+LOGOS (required sizes for AppSource submission):
+  • 48 × 48 px     — Small icon (shown in search results)
+  • 90 × 90 px     — Medium icon (REQUIRED)
+  • 216 × 216 px   — Large icon (recommended)
+  • 300 × 300 px   — Store tile (recommended)
+  • 255 × 115 px   — Hero banner (optional, improves listing quality)
+
+Format: PNG with transparent background preferred. No rounded corners —
+AppSource applies its own corner radius.
+
+SCREENSHOTS (minimum 3 required, maximum 5 recommended):
+  Screenshot 1 — Home screen showing Free vs Pro comparison list
+    Caption: "See what's free and what's included in Pro at a glance"
+
+  Screenshot 2 — Overview tab with financial health score, KPIs, and monthly chart
+    Caption: "Instant financial health score, income/expense KPIs, and monthly trend"
+
+  Screenshot 3 — Categories tab showing income sources and spending breakdown
+    Caption: "Automatic spending breakdown across 14 categories with merchant insights"
+
+  Screenshot 4 — Transactions tab with search, filters, and tax tagging
+    Caption: "Search, filter by amount or category, and tag tax-deductible expenses"
+
+  Screenshot 5 — Budget tab (Pro) with budget vs. actual bars
+    Caption: "Set category budgets and track spending vs. target in real time (Pro)"
+
+Dimensions: 1366 × 768 px minimum. PNG or JPEG. Max 1 MB each.
+
+================================================================================
+SECTION 8 — PRICING PLANS
+================================================================================
+
+[Enter these plans in Partner Center → Plan overview → Create new plan.
+ Pricing model: Per user. Visibility: Public.]
+
+Plan 1 — Monthly
+  Plan ID:     monthly
+  Plan name:   Monthly
+  Price:       $5.00 per user per month
+  Billing:     Monthly
+
+Plan 2 — 3-Month
+  Plan ID:     quarterly
+  Plan name:   3-Month (Save 20%)
+  Price:       $12.00 per user per quarter ($4.00/month equivalent)
+  Billing:     Quarterly
+
+Plan 3 — 6-Month
+  Plan ID:     biannual
+  Plan name:   6-Month (Save 33%)
+  Price:       $20.00 per user per 6 months ($3.33/month equivalent)
+  Billing:     Semi-annual
+
+Plan 4 — Annual
+  Plan ID:     annual
+  Plan name:   1-Year (Save 42%)
+  Price:       $35.00 per user per year ($2.92/month equivalent)
+  Billing:     Annual
+
+NOTE: Consider adding a 14-day or 30-day free trial on the Monthly plan to
+reduce purchase friction. Microsoft handles trial periods automatically.
+
+================================================================================
+SECTION 9 — OFFICE ADD-IN STORE LISTING (SEPARATE SUBMISSION)
+================================================================================
+
+The Office Add-in listing (submitted via manifest.xml) is separate from the
+SaaS offer. It controls how the add-in appears inside Excel's "Get Add-ins"
+dialog.
+
+Display name (must match manifest.xml exactly):
+  Financial Data Analyzer
+
+Short description (for in-Excel discovery, ≤100 chars):
+  Analyze, categorize, and export financial transactions directly in Excel.
+
+Long description (≤300 words):
+  Financial Data Analyzer is a task-pane add-in that transforms any Excel
+  spreadsheet containing bank or financial data into an instant financial
+  dashboard.
+
+  Point it at your data or paste a CSV export from your bank, and it
+  automatically categorizes transactions, calculates your financial health
+  score, shows monthly spending trends, identifies your top merchants, and
+  compares month-over-month category changes.
+
+  Free features include transaction analysis, 14-category auto-categorization,
+  a financial health score, monthly trend charts, amount range filtering, top
+  expense tracking, income source breakdown, and average spending stats.
+
+  Pro features (AppSource subscription) add cell highlighting, Excel summary
+  export, CSV and PDF exports, recurring charge detection, duplicate flagging,
+  category budgets, tax deduction tracking, and cash flow projections.
+
+  All analysis runs locally inside Excel — no financial data ever leaves your
+  workbook. Requires a Microsoft account to unlock Pro features via AppSource.
+
+Version:
+  2.0.0
+
+Supported Office versions:
+  Excel 2016 or later, Excel on the web, Excel for Mac
+  (Requires ExcelApi 1.1+)
+
+Manifest file:
+  manifest.xml (in the project root — update placeholder values before submitting)
+
+================================================================================
+END OF STORE LISTING
+================================================================================
