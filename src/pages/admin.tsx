@@ -1982,7 +1982,7 @@ function RevenueTab({ pw }: { pw: string }) {
 }
 
 // ── Main admin page ───────────────────────────────────────────────────────────
-type Tab = "overview" | "licenses" | "revenue" | "payment" | "appearance" | "notifications" | "backup" | "setup" | "tickets";
+type Tab = "overview" | "licenses" | "revenue" | "subscriptions" | "tickets" | "payment" | "appearance" | "notifications" | "backup" | "setup";
 
 // ── Tickets tab ────────────────────────────────────────────────────────────────
 interface Ticket {
@@ -2184,10 +2184,260 @@ function TicketsTab({ pw }: { pw: string }) {
   );
 }
 
+// ── Subscriptions health tab ──────────────────────────────────────────────────
+interface Subscription {
+  subscriptionId: string;
+  planId?: string;
+  status: "Subscribed" | "Unsubscribed" | "Suspended" | string;
+  beneficiary?: { emailId?: string; objectId?: string };
+  purchaser?:   { emailId?: string; objectId?: string };
+  activatedAt?: string;
+  updatedAt?:   string;
+  offerId?:     string;
+  quantity?:    number;
+}
+
+function SubscriptionsTab({ pw }: { pw: string }) {
+  const [subs, setSubs]       = useState<Subscription[] | null>(null);
+  const [licenses, setLicenses] = useState<License[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
+
+  async function loadAll() {
+    setLoading(true); setError("");
+    try {
+      const [subRes, licRes] = await Promise.all([
+        fetch(`${API_BASE}/api/saas/subscriptions`, { headers: { "x-admin-password": pw } }),
+        fetch(`${API_BASE}/api/admin/licenses`,     { headers: { "x-admin-password": pw } }),
+      ]);
+      if (!subRes.ok) throw new Error(`Subscriptions API error (${subRes.status})`);
+      if (!licRes.ok) throw new Error(`Licenses API error (${licRes.status})`);
+      const subData = await subRes.json();
+      const licData = await licRes.json();
+      setSubs(Array.isArray(subData) ? subData : []);
+      setLicenses(licData.licenses ?? []);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadAll(); }, []);
+
+  // Build a lookup: subscriptionId → license
+  const licBySubId = (licenses ?? []).reduce<Record<string, License>>((acc, l) => {
+    if (l.txHash && l.txHash !== "MANUAL") acc[l.txHash] = l;
+    return acc;
+  }, {});
+
+  const now = Date.now();
+
+  function licenseStatus(sub: Subscription): { label: string; color: string } {
+    const lic = licBySubId[sub.subscriptionId];
+    if (!lic) return { label: "No license", color: "bg-gray-100 text-gray-600" };
+    if (lic.expiresAt && new Date(lic.expiresAt).getTime() < now)
+      return { label: "Expired", color: "bg-red-100 text-red-700" };
+    return { label: "Active", color: "bg-green-100 text-green-700" };
+  }
+
+  function healthFlag(sub: Subscription): { text: string; className: string } | null {
+    const lic = licBySubId[sub.subscriptionId];
+    const licActive = lic && (!lic.expiresAt || new Date(lic.expiresAt).getTime() > now);
+    if ((sub.status === "Unsubscribed" || sub.status === "Suspended") && licActive)
+      return { text: "⚠ Cancelled but license active", className: "bg-amber-100 text-amber-800" };
+    if (sub.status === "Subscribed" && !licActive)
+      return { text: "⚠ Paying — no active license", className: "bg-red-100 text-red-800" };
+    return null;
+  }
+
+  const counts = (subs ?? []).reduce(
+    (acc, s) => {
+      acc[s.status] = (acc[s.status] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+  const flaggedCount = (subs ?? []).filter(s => healthFlag(s) !== null).length;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold">AppSource Subscription Health</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Live view of Microsoft subscription states, cross-referenced with license data.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={loadAll} disabled={loading} className="gap-1.5">
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+        </Button>
+      </div>
+
+      {/* KPI row */}
+      {!loading && !error && subs !== null && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Subscribed",   value: counts["Subscribed"]   ?? 0, cls: "bg-green-50 border-green-200 text-green-700" },
+            { label: "Suspended",    value: counts["Suspended"]    ?? 0, cls: "bg-amber-50 border-amber-200 text-amber-700" },
+            { label: "Unsubscribed", value: counts["Unsubscribed"] ?? 0, cls: "bg-gray-50 border-gray-200 text-gray-600"   },
+            { label: "Health flags", value: flaggedCount,               cls: flaggedCount > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700" },
+          ].map(k => (
+            <div key={k.label} className={`rounded-xl border px-4 py-3 text-center ${k.cls}`}>
+              <p className="text-2xl font-bold">{k.value}</p>
+              <p className="text-xs mt-0.5 opacity-80">{k.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Loading / error states */}
+      {loading && (
+        <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+          <RefreshCw className="w-5 h-5 animate-spin" />
+          <span className="text-sm">Loading subscriptions…</span>
+        </div>
+      )}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-800">Could not load subscriptions</p>
+            <p className="text-xs text-red-700 mt-0.5 font-mono">{error}</p>
+            <p className="text-xs text-red-600 mt-1">
+              Make sure <code className="bg-red-100 px-1 rounded">AZURE_TENANT_ID</code>,{" "}
+              <code className="bg-red-100 px-1 rounded">AZURE_CLIENT_ID</code>, and{" "}
+              <code className="bg-red-100 px-1 rounded">AZURE_CLIENT_SECRET</code> are set.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && subs?.length === 0 && (
+        <Card>
+          <CardContent className="py-16 text-center space-y-2">
+            <Activity className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+            <p className="text-sm font-medium text-muted-foreground">No AppSource subscriptions yet</p>
+            <p className="text-xs text-muted-foreground/70">
+              Subscriptions appear here once customers purchase via AppSource and complete the landing page flow.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Subscription table */}
+      {!loading && !error && subs && subs.length > 0 && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50/60">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Subscriber</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Plan</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">MS Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">License</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Health</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Activated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subs.map((sub, i) => {
+                    const email    = sub.beneficiary?.emailId ?? sub.purchaser?.emailId ?? "—";
+                    const lic      = licBySubId[sub.subscriptionId];
+                    const licStat  = licenseStatus(sub);
+                    const flag     = healthFlag(sub);
+                    const statusColor =
+                      sub.status === "Subscribed"   ? "bg-green-100 text-green-700" :
+                      sub.status === "Suspended"    ? "bg-amber-100 text-amber-700" :
+                      sub.status === "Unsubscribed" ? "bg-gray-100 text-gray-600"   :
+                                                      "bg-blue-100 text-blue-700";
+                    return (
+                      <tr key={sub.subscriptionId} data-testid={`row-sub-${i}`}
+                        className={`border-b last:border-0 transition-colors ${flag ? "bg-amber-50/30 hover:bg-amber-50/60" : "hover:bg-gray-50"}`}>
+                        {/* Subscriber email */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-medium" data-testid={`text-sub-email-${i}`}>{email}</span>
+                            {email !== "—" && <CopyBtn text={email} />}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-mono">{sub.subscriptionId.slice(0, 16)}…</span>
+                        </td>
+                        {/* Plan */}
+                        <td className="px-4 py-3">
+                          {sub.planId ? (
+                            <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700 border-0">{sub.planId}</Badge>
+                          ) : <span className="text-xs text-muted-foreground">—</span>}
+                        </td>
+                        {/* MS Status */}
+                        <td className="px-4 py-3">
+                          <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusColor}`} data-testid={`status-sub-${i}`}>
+                            {sub.status}
+                          </span>
+                        </td>
+                        {/* License status */}
+                        <td className="px-4 py-3">
+                          <div className="space-y-1">
+                            <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${licStat.color}`}>
+                              {licStat.label}
+                            </span>
+                            {lic && (
+                              <div className="flex items-center gap-1">
+                                <code className="text-[10px] font-mono text-muted-foreground">{lic.licenseKey.slice(0, 12)}…</code>
+                                <CopyBtn text={lic.licenseKey} />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        {/* Health flag */}
+                        <td className="px-4 py-3">
+                          {flag ? (
+                            <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${flag.className}`} data-testid={`flag-sub-${i}`}>
+                              {flag.text}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-green-600 font-semibold flex items-center gap-0.5">
+                              <CheckCircle2 className="w-3 h-3" /> OK
+                            </span>
+                          )}
+                        </td>
+                        {/* Activated */}
+                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                          {sub.activatedAt ? fmtDate(sub.activatedAt) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Flag legend */}
+      {!loading && !error && flaggedCount > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+          <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5" /> Health flag guide
+          </p>
+          <div className="space-y-1 text-xs text-amber-700">
+            <p><span className="font-semibold">⚠ Paying — no active license</span> — subscription is active on AppSource but the customer has no valid license key. Check whether the activation landing page was completed.</p>
+            <p><span className="font-semibold">⚠ Cancelled but license active</span> — Microsoft marked the subscription Unsubscribed or Suspended, but the customer still has a non-expired license key. Consider revoking it from the Licenses tab.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "overview",      label: "Overview",       icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: "licenses",      label: "Licenses",       icon: <KeyRound className="w-4 h-4" /> },
   { id: "revenue",       label: "Revenue",        icon: <TrendingUp className="w-4 h-4" /> },
+  { id: "subscriptions", label: "Subscriptions",  icon: <Activity className="w-4 h-4" /> },
   { id: "tickets",       label: "Tickets",        icon: <TicketCheck className="w-4 h-4" /> },
   { id: "payment",       label: "Payment",        icon: <CreditCard className="w-4 h-4" /> },
   { id: "notifications", label: "Notifications",  icon: <Bell className="w-4 h-4" /> },
@@ -2257,10 +2507,11 @@ export default function AdminPage() {
         </div>
 
         {/* Tab content */}
-        {tab === "overview"      && <OverviewTab pw={pw} onNavigate={setTab} />}
-        {tab === "licenses"      && <LicensesTab pw={pw} />}
-        {tab === "revenue"       && <RevenueTab pw={pw} />}
-        {tab === "tickets"       && <TicketsTab pw={pw} />}
+        {tab === "overview"       && <OverviewTab pw={pw} onNavigate={setTab} />}
+        {tab === "licenses"       && <LicensesTab pw={pw} />}
+        {tab === "revenue"        && <RevenueTab pw={pw} />}
+        {tab === "subscriptions"  && <SubscriptionsTab pw={pw} />}
+        {tab === "tickets"        && <TicketsTab pw={pw} />}
         {tab === "payment"       && settings && <PaymentTab pw={pw} settings={settings} onSaved={setSettings} />}
         {tab === "notifications" && settings && <NotificationsTab pw={pw} settings={settings} onSaved={setSettings} />}
         {tab === "appearance"    && settings && <AppearanceTab pw={pw} settings={settings} onSaved={setSettings} />}
