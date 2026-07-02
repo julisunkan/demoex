@@ -1,0 +1,1 @@
+- [MS AppSource billing integration](ms-appsource-integration.md) — USDT replaced; auth flow, security constraints, and env vars needed

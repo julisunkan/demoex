@@ -1,0 +1,24 @@
+
+> excel-addin@0.0.0 dev
+> node server/index.js & npx vite --config vite.config.ts --port 5000 --host 0.0.0.0
+
+[1G[0Knode:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'express' imported from /home/runner/workspace/server/index.js
+[90m    at packageResolve (node:internal/modules/esm/resolve:873:9)[39m
+[90m    at moduleResolve (node:internal/modules/esm/resolve:946:18)[39m
+[90m    at defaultResolve (node:internal/modules/esm/resolve:1188:11)[39m
+[90m    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)[39m
+[90m    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)[39m
+[90m    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)[39m
+[90m    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)[39m
+[90m    at ModuleJob._link (node:internal/modules/esm/module_job:168:49)[39m {
+  code: [32m'ERR_MODULE_NOT_FOUND'[39m
+}
+
+Node.js v20.20.0
+[1G[0K⠙[1G[0K⠹[1G[0K⠸[1G[0K[1G[0JNeed to install the following packages:
+vite@8.1.0
+Ok to proceed? (y) [20G

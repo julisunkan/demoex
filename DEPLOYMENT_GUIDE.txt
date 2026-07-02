@@ -1,0 +1,661 @@
+================================================================================
+  BANK STATEMENT ANALYZER — COMPLETE DEPLOYMENT GUIDE
+  Microsoft AppSource + Azure AD + Render Hosting
+================================================================================
+
+Last updated: July 2026
+This guide walks you through every step needed to deploy the add-in to
+production, connect it to Microsoft AppSource for billing, and configure
+Azure Active Directory (Entra ID) for user authentication.
+
+Read this entire document before starting. Steps must be done in order
+because later steps depend on values you collect in earlier ones.
+
+--------------------------------------------------------------------------------
+PART 0 — WHAT YOU ARE DEPLOYING
+--------------------------------------------------------------------------------
+
+The Bank Statement Analyzer is a Microsoft Excel add-in with two parts:
+
+  1. Frontend (React + Vite)
+     A task-pane web app that runs inside Excel. It shows the analyzer UI,
+     signs the user in with their Microsoft account, and checks whether they
+     have an active AppSource subscription.
+
+  2. Backend (Node.js / Express)
+     An API server that handles:
+       - Microsoft SaaS Fulfillment API calls (subscription lifecycle)
+       - User subscription verification via Microsoft Graph
+       - The AppSource landing page logic
+       - Admin settings and ticket management
+
+Billing works as follows:
+  - Users subscribe to your offer on Microsoft AppSource.
+  - Microsoft charges the user's credit card / Microsoft billing account.
+  - Microsoft sends lifecycle events (Subscribed, Unsubscribed, etc.) to
+    your webhook URL so your server knows who has access.
+  - Users sign in with Microsoft inside Excel; your server confirms they
+    have an active subscription before unlocking Pro features.
+  - You never handle credit cards directly — Microsoft does everything.
+
+--------------------------------------------------------------------------------
+PART 1 — ACCOUNTS YOU NEED TO CREATE (DO FIRST)
+--------------------------------------------------------------------------------
+
+Before writing a single line of configuration, make sure you have access to:
+
+  A) A Microsoft Azure account
+     → https://portal.azure.com
+     → Free tier is fine for development. You need this to register your app
+       with Azure Active Directory (Entra ID) so users can "Sign in with
+       Microsoft" and your server can call the SaaS Fulfillment API.
+
+  B) A Microsoft Partner Center account (for AppSource publishing)
+     → https://partner.microsoft.com
+     → You must enroll in the "Commercial Marketplace" program.
+     → Individual publishers need to verify identity. Companies need a
+       registered business. This verification can take 1–5 business days.
+     → There is no fee to list free or paid SaaS apps on AppSource.
+
+  C) A Render account (for hosting the backend and frontend)
+     → https://render.com
+     → Free tier works for testing; Starter plan ($7/month) recommended for
+       production (no sleep delays on requests).
+
+  D) A custom domain (recommended for production)
+     → Examples: yourdomain.com, bankanalyzer.com
+     → Required for AppSource submissions (localhost URLs are not accepted).
+     → You can get one from Namecheap, Google Domains, Cloudflare, etc.
+
+--------------------------------------------------------------------------------
+PART 2 — AZURE ACTIVE DIRECTORY: REGISTER YOUR APP
+--------------------------------------------------------------------------------
+
+This step creates an "App Registration" — a way for Microsoft to know your
+application exists and can authenticate users.
+
+STEP 2.1 — Open the Azure Portal
+  → Go to https://portal.azure.com
+  → Sign in with your Microsoft account
+  → In the top search bar, type "Azure Active Directory" and click it
+    (It may now be labeled "Microsoft Entra ID" — same thing)
+
+STEP 2.2 — Create a new App Registration
+  → Click "App registrations" in the left sidebar
+  → Click "+ New registration" at the top
+  → Fill in:
+      Name:           Bank Statement Analyzer
+                      (This is what users see when they sign in)
+      Supported account types:
+                      Choose "Accounts in any organizational directory
+                      (Any Azure AD directory - Multitenant) and personal
+                      Microsoft accounts (e.g. Skype, Xbox)"
+                      WHY: This allows both work/school accounts AND
+                      personal Microsoft accounts to sign in.
+      Redirect URI:   Choose "Single-page application (SPA)" from the
+                      dropdown, then enter:
+                      https://YOUR-RENDER-DOMAIN.onrender.com
+                      (We will update this later with your real domain.
+                      For now, also add: http://localhost:5000)
+  → Click "Register"
+
+STEP 2.3 — Note your Application (client) ID
+  → After registration, you are taken to the app's Overview page.
+  → Copy and save the value labeled:
+        "Application (client) ID"
+  → It looks like: 12345678-abcd-1234-efgh-123456789012
+  → This is your AZURE_CLIENT_ID (and VITE_AZURE_CLIENT_ID).
+
+STEP 2.4 — Note your Directory (tenant) ID
+  → On the same Overview page, copy:
+        "Directory (tenant) ID"
+  → It looks like: 87654321-dcba-4321-hgfe-210987654321
+  → This is your AZURE_TENANT_ID.
+  → For the frontend (VITE_AZURE_TENANT_ID), use "common" instead of
+    your specific tenant ID — this allows ANY Microsoft account to sign in,
+    not just accounts from your organization.
+
+STEP 2.5 — Add API permissions
+  → Click "API permissions" in the left sidebar
+  → Click "+ Add a permission"
+  → Choose "Microsoft Graph"
+  → Choose "Delegated permissions"
+  → Search for and add these four permissions:
+        openid         (lets users sign in)
+        profile        (gets their name)
+        email          (gets their email address)
+        User.Read      (lets your server verify their identity via Graph)
+  → Click "Add permissions"
+  → Click "Grant admin consent for [your org]" (the blue button)
+    If you don't see this button, ask your Azure admin to grant consent,
+    OR your users will be asked to consent themselves on first sign-in.
+
+STEP 2.6 — Create a Client Secret (for server-to-server calls)
+  → Click "Certificates & secrets" in the left sidebar
+  → Click "+ New client secret"
+  → Description: "Production server secret"
+  → Expires: Choose "24 months" (you'll need to rotate it before it expires)
+  → Click "Add"
+  → IMMEDIATELY copy the secret VALUE (not the ID). It disappears after
+    you leave this page.
+  → This is your AZURE_CLIENT_SECRET.
+
+STEP 2.7 — Configure the Application ID URI (for Office SSO)
+  This allows the add-in to use Office's built-in single sign-on so users
+  don't need to click a sign-in button every time they open Excel.
+  → Click "Expose an API" in the left sidebar
+  → Next to "Application ID URI", click "Add"
+  → The suggested URI will be: api://YOUR_CLIENT_ID
+    Change it to: api://YOUR-RENDER-DOMAIN.onrender.com/YOUR_CLIENT_ID
+    Example: api://bankanalyzer.onrender.com/12345678-abcd-1234-efgh-123456789012
+  → Click "Save"
+  → Click "+ Add a scope"
+  → Scope name: access_as_user
+  → Who can consent: Admins and users
+  → Admin consent display name: Access Bank Statement Analyzer
+  → Admin consent description: Allows the app to access Bank Statement Analyzer on behalf of the signed-in user.
+  → User consent display name: Access Bank Statement Analyzer
+  → User consent description: Allows the app to access Bank Statement Analyzer on your behalf.
+  → State: Enabled
+  → Click "Add scope"
+  → Click "+ Add a client application"
+  → Enter: ea5a67f6-b6f3-4338-b240-c655ddc3cc8e
+    (This is Microsoft Office's well-known client ID — it allows Excel to
+    request tokens on behalf of your users for SSO.)
+  → Check the box next to your api://... scope
+  → Click "Add application"
+
+STEP 2.8 — Update manifest.xml
+  Open the file manifest.xml in this project and replace the placeholders:
+  → Find: YOUR_AZURE_CLIENT_ID
+    Replace with: your actual client ID from Step 2.3
+  → Find: YOUR_DOMAIN
+    Replace with: your Render domain (e.g., bankanalyzer.onrender.com)
+  → Also update the SourceLocation, IconUrl, HighResolutionIconUrl,
+    and SupportUrl values to use your real Render domain.
+
+--------------------------------------------------------------------------------
+PART 3 — DEPLOY THE APPLICATION TO RENDER
+--------------------------------------------------------------------------------
+
+Render hosts your backend (API server) and frontend (React app) so they're
+accessible from the internet.
+
+STEP 3.1 — Push your code to GitHub
+  → Create a new repository at https://github.com
+  → In your local project folder, run:
+        git init
+        git add .
+        git commit -m "Initial deployment"
+        git remote add origin https://github.com/YOUR_USERNAME/bank-analyzer.git
+        git push -u origin main
+
+STEP 3.2 — Create the Backend Web Service on Render
+  → Go to https://render.com and sign in
+  → Click "New +" → "Web Service"
+  → Connect your GitHub account and select your repository
+  → Configure:
+        Name:           bank-analyzer-api
+        Region:         Choose one closest to your users (e.g., Oregon for US)
+        Branch:         main
+        Runtime:        Node
+        Build Command:  npm install
+        Start Command:  node server/index.js
+        Instance Type:  Starter ($7/month) or Free (has 15-min sleep)
+  → Click "Advanced" to add environment variables (see Part 4 below)
+  → Click "Create Web Service"
+  → Wait for the first deploy to complete (~3-5 minutes)
+  → Copy the URL shown (e.g., https://bank-analyzer-api.onrender.com)
+    This is your BACKEND URL — you need it for Part 4.
+
+STEP 3.3 — Create the Frontend Static Site on Render
+  → Click "New +" → "Static Site"
+  → Select the same GitHub repository
+  → Configure:
+        Name:           bank-analyzer-app
+        Branch:         main
+        Build Command:  npm run build
+        Publish Directory: dist
+  → Click "Advanced" to add environment variables (see Part 4 below)
+  → Click "Create Static Site"
+  → Wait for the build to complete (~2-3 minutes)
+  → Copy the URL shown (e.g., https://bank-analyzer-app.onrender.com)
+    This is your FRONTEND URL — update manifest.xml with this.
+
+STEP 3.4 — Update Azure redirect URIs with your real URLs
+  → Go back to your Azure App Registration → "Authentication"
+  → Under "Single-page application", add your Render frontend URL:
+        https://bank-analyzer-app.onrender.com
+        https://bank-analyzer-app.onrender.com/landing
+  → Click "Save"
+
+--------------------------------------------------------------------------------
+PART 4 — ENVIRONMENT VARIABLES
+--------------------------------------------------------------------------------
+
+Environment variables store secrets and configuration values outside your
+code. You must set these in both Replit (for development) and Render (for
+production). Never commit secrets to Git.
+
+BACKEND ENVIRONMENT VARIABLES (set in Render → bank-analyzer-api → Environment)
+=================================================================================
+
+  AZURE_TENANT_ID
+    What it is: Your Azure AD tenant ID from Step 2.4
+    Example:    87654321-dcba-4321-hgfe-210987654321
+    Why needed: Used to get an access token for the SaaS Fulfillment API.
+                Without this, the server cannot verify or activate
+                Microsoft subscriptions.
+
+  AZURE_CLIENT_ID
+    What it is: Your app registration client ID from Step 2.3
+    Example:    12345678-abcd-1234-efgh-123456789012
+    Why needed: Identifies your application when calling Microsoft APIs.
+
+  AZURE_CLIENT_SECRET
+    What it is: The secret value you created in Step 2.6
+    Example:    abc~defghijk.lmn_opqrstu123456789VWX
+    Why needed: Authenticates your server to Microsoft (server-to-server auth).
+    WARNING:    This is a password. Treat it like one. Do not share it or
+                commit it to source control.
+
+  ADMIN_PASSWORD
+    What it is: A password you choose to protect the /admin panel
+    Example:    my-very-secure-admin-password-2024
+    Why needed: The admin panel at /admin lets you view settings and export
+                data. This password protects it from public access.
+    Recommendation: Use a password manager to generate a 20+ character
+                random password.
+
+  SESSION_SECRET
+    What it is: A long random string used to sign session cookies
+    Example:    use `openssl rand -base64 32` to generate one
+    Why needed: Prevents session tampering.
+
+  PORT (optional)
+    What it is: The port the server listens on
+    Default:    3001
+    Note:       Render sets this automatically — you usually don't need it.
+
+  FRONTEND ENVIRONMENT VARIABLES (set in Render → bank-analyzer-app → Environment)
+  ==================================================================================
+  NOTE: Vite frontend variables MUST start with VITE_ to be included in the build.
+
+  VITE_AZURE_CLIENT_ID
+    What it is: Same as AZURE_CLIENT_ID above
+    Example:    12345678-abcd-1234-efgh-123456789012
+    Why needed: The frontend MSAL library uses this to sign users in.
+
+  VITE_AZURE_TENANT_ID
+    What it is: "common" (recommended) or your specific tenant ID
+    Recommended value: common
+    Why "common": Using "common" allows ALL Microsoft accounts to sign in —
+                  personal (Outlook, Hotmail) AND work/school accounts.
+                  Using your specific tenant ID would restrict to only your
+                  organization's accounts.
+
+  VITE_API_URL
+    What it is: The full URL of your backend service
+    Example:    https://bank-analyzer-api.onrender.com
+    Why needed: The frontend needs to know where to send API requests
+                (subscription checks, SaaS resolve, etc.)
+
+  VITE_APPSOURCE_URL
+    What it is: The URL of your offer on Microsoft AppSource
+    Example:    https://appsource.microsoft.com/en-us/product/office/WA200012345
+    Why needed: The "Subscribe on AppSource" buttons link here.
+    Note:       You get this URL after publishing your offer (Part 5).
+                For now, use: https://appsource.microsoft.com
+
+SETTING VARIABLES IN REPLIT (for local development)
+=====================================================
+  → In Replit, click the lock icon (🔒) in the left sidebar labeled "Secrets"
+  → Add each variable with the same names as above
+  → For VITE_ variables, also add them as Replit Secrets — Vite picks them
+    up automatically during development
+
+--------------------------------------------------------------------------------
+PART 5 — MICROSOFT PARTNER CENTER: CREATE YOUR APPSOURCE OFFER
+--------------------------------------------------------------------------------
+
+This is the most involved part. Partner Center is where you configure what
+users see on AppSource, set your pricing plans, and connect Microsoft's
+billing system to your backend.
+
+STEP 5.1 — Access Partner Center
+  → Go to https://partner.microsoft.com/en-us/dashboard
+  → Sign in with your Microsoft account
+  → If you haven't already, complete the publisher enrollment:
+        → Click "Become a partner" or "Enroll"
+        → Choose "Commercial Marketplace"
+        → Complete identity and business verification
+        → This can take 1–5 business days
+
+STEP 5.2 — Create a new SaaS offer
+  → In Partner Center, go to "Marketplace offers"
+  → Click "+ New offer" → "Software as a Service (SaaS)"
+  → Enter an Offer ID: bank-statement-analyzer
+    (This is a permanent, lowercase identifier — choose carefully)
+  → Enter an Offer alias (internal name): Bank Statement Analyzer Pro
+  → Click "Create"
+
+STEP 5.3 — Offer Setup (Technical Configuration tab)
+  This is where you connect Microsoft to your server.
+
+  Landing page URL:
+    Enter: https://bank-analyzer-app.onrender.com/landing
+    WHY: When a user completes a purchase on AppSource, Microsoft redirects
+    them to this URL with a ?token=... parameter. Your landing page calls
+    /api/saas/resolve and /api/saas/activate to complete the setup.
+
+  Connection webhook:
+    Enter: https://bank-analyzer-api.onrender.com/api/saas/webhook
+    WHY: Microsoft sends subscription lifecycle events (cancel, suspend,
+    renew, plan changes) to this URL so your server stays in sync.
+
+  Azure Active Directory tenant ID:
+    Enter your AZURE_TENANT_ID from Step 2.4
+
+  Azure Active Directory application ID:
+    Enter your AZURE_CLIENT_ID from Step 2.3
+
+  → Click "Save draft"
+
+STEP 5.4 — Offer Listing (Properties and Listing tabs)
+  Fill in the marketplace listing that users see:
+
+  → Categories: Productivity → Office Add-ins (or Data Analytics)
+  → Industries: (optional) Financial Services
+  → App version: 2.0.0
+  → Privacy policy URL: https://bank-analyzer-app.onrender.com/privacy
+  → Support URL: https://bank-analyzer-app.onrender.com/support
+  → Offer name: Bank Statement Analyzer Pro
+  → Summary (255 chars): Analyze bank statements in Excel. Automatically
+    categorize transactions, track budgets, detect recurring charges, and
+    export summary reports. Subscribe to unlock Pro features.
+  → Description: Write a detailed description (up to 3000 characters)
+    explaining what the add-in does and why users need it.
+  → Screenshots: Add at least 3 screenshots of the add-in in action.
+    These are required for AppSource review.
+  → Logos: Provide logos in these sizes:
+        216x216 pixels (Small)
+        90x90 pixels (Medium — required)
+        300x300 pixels (Large)
+        48x48 pixels (Wide — required)
+        255x115 pixels (Hero — optional but recommended)
+
+STEP 5.5 — Create Pricing Plans
+  → Click the "Plan overview" tab
+  → Click "+ Create new plan"
+  → You need at least one paid plan. Example plans:
+
+    Plan 1 — Monthly
+      Plan ID:    monthly
+      Plan name:  Monthly
+      Price:      $9.99 per user per month
+      Billing:    Monthly (no free trial needed, but you can add one)
+
+    Plan 2 — Annual
+      Plan ID:    annual
+      Plan name:  Annual (Save 30%)
+      Price:      $83.88 per user per year ($6.99/month equivalent)
+      Billing:    Annual
+
+  → For each plan, set:
+      Markets: Select which countries to sell in
+      Pricing model: Per user (recommended — each user buys a seat)
+      Visibility: Public
+
+  → You can also add a free trial (e.g., 30-day free trial) to reduce
+    purchase friction. Microsoft handles the trial period automatically.
+
+STEP 5.6 — Technical add-in package (for Office Add-ins specifically)
+  If you want the add-in listed in the Office store (within Excel's
+  "Get Add-ins" dialog), you also need to submit via:
+  → https://partner.microsoft.com → Marketplace offers → + New offer
+    → "Office add-in"
+  This is a SEPARATE listing from the SaaS offer above. The SaaS offer
+  handles billing; the Office Add-in listing handles discovery in Excel.
+  In the Office Add-in submission, upload your manifest.xml.
+
+STEP 5.7 — Submit for review
+  → Go through all tabs and ensure no red warning indicators remain
+  → Click "Review and publish"
+  → Microsoft's AppSource team reviews submissions manually
+  → Initial review takes 7–14 business days
+  → They may request changes; respond promptly to avoid further delays
+  → After approval, your offer goes live on AppSource
+
+--------------------------------------------------------------------------------
+PART 6 — TESTING THE SUBSCRIPTION FLOW (before going live)
+--------------------------------------------------------------------------------
+
+You can test the entire flow with a fake "preview" purchase before your
+offer is publicly live.
+
+STEP 6.1 — Test with the development environment
+  While the server is running locally (npm run dev):
+
+  A) Test the /api/saas/status endpoint:
+     → Open: http://localhost:3001/api/saas/status
+     → If Azure credentials are set, you should see: {"configured": true}
+     → If not: {"configured": false} — check your env vars
+
+  B) Test user authentication:
+     → Open: http://localhost:5000
+     → The add-in home screen should show with a "Free vs Pro" section
+     → Click "Get Pro" — the SignInGate should appear
+     → Click "Sign in with Microsoft" — an MSAL popup should open
+     → Sign in with any Microsoft account
+     → If you have an active AppSource subscription: Pro features unlock
+     → If not: you see the "No active subscription" message
+
+  C) Test the landing page:
+     → Open: http://localhost:5000/landing
+     → Without a ?token= parameter, you should see an error message
+     → This is expected — the token comes from Microsoft in production
+
+STEP 6.2 — Use the AppSource preview functionality
+  → In Partner Center, before publishing publicly, you can generate a
+    "preview" marketplace token to test the full purchase flow
+  → Go to your offer → "Preview" tab
+  → Add your own Azure account email as a preview audience
+  → Click "Go live" → then "Preview" to get a test purchase link
+  → This simulates the exact flow a real customer goes through
+
+STEP 6.3 — Verify webhook reception
+  → After a test subscription, check your Render logs for the API service:
+        Log line: "[saas] webhook: Subscribed — {subscriptionId}"
+  → Check the subscriptions.json file is updated:
+        http://localhost:3001/api/saas/subscriptions
+        (Requires X-Admin-Password header)
+
+--------------------------------------------------------------------------------
+PART 7 — GOING LIVE CHECKLIST
+--------------------------------------------------------------------------------
+
+Before flipping the switch to public:
+
+  [ ] Azure AD App Registration created with correct redirect URIs
+  [ ] Client secret created and saved (it won't show again!)
+  [ ] API permissions granted: openid, profile, email, User.Read
+  [ ] Application ID URI configured for Office SSO
+  [ ] manifest.xml updated: client ID, domain, SourceLocation
+  [ ] Backend deployed on Render with all env vars set
+  [ ] Frontend deployed on Render with all VITE_ env vars set
+  [ ] /api/saas/status returns {"configured": true}
+  [ ] Sign-in flow tested end-to-end in the browser
+  [ ] AppSource offer created with correct landing page and webhook URLs
+  [ ] At least one pricing plan created
+  [ ] Offer listing has screenshots, logos, description
+  [ ] Privacy policy page live at /privacy
+  [ ] Support page live at /support
+  [ ] Test subscription completed successfully end-to-end
+  [ ] Webhook receiving events (check Render logs)
+  [ ] ADMIN_PASSWORD set and /admin panel secured
+  [ ] Custom domain configured (optional but recommended)
+
+--------------------------------------------------------------------------------
+PART 8 — DOMAIN SETUP (OPTIONAL BUT RECOMMENDED)
+--------------------------------------------------------------------------------
+
+Using a custom domain (e.g., bankanalyzer.io) instead of .onrender.com makes
+your app look more professional and is required for some AppSource categories.
+
+STEP 8.1 — Buy a domain
+  → Use any domain registrar: Namecheap, Cloudflare, Google Domains
+  → Cloudflare Registrar offers domains at cost with free DNS hosting
+
+STEP 8.2 — Configure Render with your custom domain
+  → In Render → your web service → "Settings" → "Custom Domains"
+  → Click "Add custom domain"
+  → Enter: api.yourdomain.com (for the backend)
+  → Render provides a DNS record to add at your registrar
+  → Do the same for the frontend: app.yourdomain.com (or just yourdomain.com)
+
+STEP 8.3 — Update everything with your new domain
+  → Azure App Registration → Authentication → add the new redirect URIs
+  → Partner Center → Technical configuration → update landing page and webhook
+  → manifest.xml → update SourceLocation and all URLs
+  → VITE_API_URL → update to your new API domain
+  → Redeploy frontend after changing VITE_API_URL
+
+--------------------------------------------------------------------------------
+PART 9 — MAINTENANCE AND OPERATIONS
+--------------------------------------------------------------------------------
+
+CLIENT SECRET ROTATION (Required every 24 months)
+  → Azure Portal → App registrations → your app → Certificates & secrets
+  → Create a new secret BEFORE the old one expires
+  → Update AZURE_CLIENT_SECRET in Render environment variables
+  → Render will automatically redeploy with the new secret
+  → Delete the old secret after confirming the new one works
+
+VIEWING SUBSCRIPTIONS
+  → GET https://bank-analyzer-api.onrender.com/api/saas/subscriptions
+  → Add header: X-Admin-Password: [your ADMIN_PASSWORD]
+  → Returns a JSON array of all subscription records
+
+EXPORTING DATA
+  → GET https://bank-analyzer-api.onrender.com/api/admin/export
+  → Add header: X-Admin-Password: [your ADMIN_PASSWORD]
+  → Downloads a full JSON backup of settings and subscriptions
+
+VIEWING LOGS
+  → In Render → your web service → "Logs"
+  → Look for lines starting with [saas] for subscription events
+  → Look for ✅ for successful activations
+  → Look for ⚠️ for warnings
+
+MONITORING SUBSCRIPTION HEALTH
+  → Microsoft sends webhook events for all lifecycle changes
+  → If your webhook is down when an event fires, Microsoft will retry
+  → Microsoft retries for up to 10 days before giving up
+  → Check Render logs daily during initial launch
+
+--------------------------------------------------------------------------------
+PART 10 — TROUBLESHOOTING COMMON ISSUES
+--------------------------------------------------------------------------------
+
+PROBLEM: "Azure credentials not configured" in server logs
+SOLUTION: Check that AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET
+          are all set as environment variables in your Render backend service.
+          Go to Render → your service → Environment → verify the values.
+
+PROBLEM: Sign-in popup appears but immediately closes with an error
+SOLUTION: Check that the redirect URI is correctly added in Azure:
+          Azure Portal → App registrations → your app → Authentication
+          → Under "Single-page application", the URL where the popup
+            redirects must exactly match your deployed URL (no trailing slash).
+
+PROBLEM: "No active subscription" after signing in, but I just subscribed
+SOLUTION A: The webhook may not have fired yet. Wait 5 minutes and try again.
+SOLUTION B: Check Render logs for "[saas] webhook" entries. If none, check
+            that your webhook URL in Partner Center is correct and the server
+            is reachable from the internet.
+SOLUTION C: The resolve/activate flow may not have completed. Try going back
+            through the landing page (/landing?token=...) again.
+
+PROBLEM: The landing page shows an error "No marketplace token found"
+SOLUTION: The landing page should only be accessed via the AppSource redirect.
+          Test it through Partner Center's preview flow, not by opening
+          /landing directly in the browser.
+
+PROBLEM: AppSource submission rejected with "cannot verify landing page"
+SOLUTION: Your landing page must be publicly accessible (not behind a login
+          wall) and must respond to a GET request without the token parameter
+          with a valid HTML page (not a 404 or error). The /landing route in
+          this app handles this correctly, but ensure your Render service is
+          not sleeping (upgrade from Free to Starter plan).
+
+PROBLEM: Office SSO (getAccessToken) fails in Excel
+SOLUTION: Ensure the WebApplicationInfo section in manifest.xml has the
+          correct client ID and Application ID URI. The URI must match exactly
+          what you set in Azure → "Expose an API". Also confirm you added
+          Office's client ID (ea5a67f6-b6f3-4338-b240-c655ddc3cc8e) as an
+          authorized client application.
+
+PROBLEM: "MSAL popup was blocked"
+SOLUTION: MSAL uses popup windows for sign-in. Some browsers block popups by
+          default. When the add-in runs inside Excel (Office client), popups
+          are generally allowed. In the browser preview, the user may need to
+          allow popups for your domain.
+
+PROBLEM: Subscriptions.json is empty after restart on Render
+SOLUTION: Render's free tier has an ephemeral file system — files written
+          to disk are lost when the service restarts. Upgrade to a paid plan
+          which offers persistent disk, OR migrate subscriptions.json to a
+          real database (PostgreSQL via Render is $7/month). This is the
+          most important production concern.
+
+--------------------------------------------------------------------------------
+PART 11 — PRODUCTION DATABASE RECOMMENDATION
+--------------------------------------------------------------------------------
+
+The current implementation stores subscriptions in a JSON file on disk.
+This is fine for development but risky in production because:
+  - Render's free tier loses disk data on restart
+  - Concurrent webhook events could conflict
+  - No audit trail for subscription changes
+
+For production, migrate to PostgreSQL:
+  1. In Render, create a new "PostgreSQL" database ($7/month for Starter)
+  2. Add the DATABASE_URL connection string to your backend environment vars
+  3. Create a subscriptions table:
+        CREATE TABLE subscriptions (
+          subscription_id VARCHAR PRIMARY KEY,
+          plan_id VARCHAR,
+          quantity INTEGER DEFAULT 1,
+          status VARCHAR NOT NULL,
+          beneficiary_oid VARCHAR,
+          purchaser_oid VARCHAR,
+          ms_graph_user_id VARCHAR,
+          offer_id VARCHAR,
+          activated_at TIMESTAMPTZ,
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+  4. Replace the JSON file read/write calls in server/routes/saas.js with
+     PostgreSQL queries using the `pg` npm package.
+
+--------------------------------------------------------------------------------
+SUPPORT AND RESOURCES
+--------------------------------------------------------------------------------
+
+Microsoft SaaS Fulfillment API documentation:
+  https://learn.microsoft.com/en-us/azure/marketplace/partner-center-portal/pc-saas-fulfillment-life-cycle
+
+Microsoft Partner Center help:
+  https://learn.microsoft.com/en-us/azure/marketplace/marketplace-publishing-guide
+
+Azure AD MSAL documentation:
+  https://learn.microsoft.com/en-us/azure/active-directory/develop/msal-overview
+
+Render deployment documentation:
+  https://render.com/docs
+
+Office Add-ins submission guide:
+  https://learn.microsoft.com/en-us/office/dev/add-ins/publish/publish
+
+================================================================================
+END OF DEPLOYMENT GUIDE
+================================================================================
