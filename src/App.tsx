@@ -118,6 +118,131 @@ function HealthRing({ score }: { score: number }) {
   );
 }
 
+// ── Quick Format Guide ────────────────────────────────────────────────────────
+function FormatGuide() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`rounded-2xl border-2 overflow-hidden transition-all duration-300 ${open ? "border-blue-300 bg-blue-50" : "border-border bg-white"}`}>
+      {/* Toggle row */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left group"
+        data-testid="button-format-guide-toggle"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${open ? "bg-blue-500" : "bg-blue-100 group-hover:bg-blue-200"}`}>
+            <svg className={`w-3.5 h-3.5 transition-colors ${open ? "text-white" : "text-blue-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <div>
+            <p className={`text-xs font-black transition-colors ${open ? "text-blue-700" : "text-foreground"}`}>Quick Format Guide</p>
+            <p className="text-[10px] text-muted-foreground">How to set up your Excel sheet</p>
+          </div>
+        </div>
+        <svg
+          className={`w-4 h-4 text-muted-foreground transition-transform duration-200 shrink-0 ${open ? "rotate-180 text-blue-500" : ""}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {/* Expandable content */}
+      {open && (
+        <div className="px-4 pb-4 space-y-4 animate-fade-in-up">
+          {/* Intro */}
+          <p className="text-xs text-blue-800 leading-relaxed">
+            Your sheet needs a <strong>header row in row 1</strong> with column names the add-in recognises. Two formats are supported:
+          </p>
+
+          {/* Format 1 */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-green-600 text-white">Format 1</span>
+              <p className="text-[10px] font-bold text-green-700">Single Amount column</p>
+            </div>
+            <div className="rounded-xl border border-green-200 bg-white overflow-hidden text-[10px]">
+              <div className="grid grid-cols-3 bg-green-600 text-white font-black px-2 py-1.5 gap-2">
+                <span>Date</span><span>Description</span><span>Amount</span>
+              </div>
+              <div className="grid grid-cols-3 px-2 py-1.5 gap-2 border-b border-green-100 text-foreground/70">
+                <span>01/06/2025</span><span className="truncate">Salary</span><span className="text-green-600">4500</span>
+              </div>
+              <div className="grid grid-cols-3 px-2 py-1.5 gap-2 text-foreground/70">
+                <span>02/06/2025</span><span className="truncate">Starbucks</span><span className="text-red-500">-6.75</span>
+              </div>
+            </div>
+            <div className="bg-green-50 rounded-xl px-3 py-2 space-y-1">
+              <p className="text-[10px] font-black text-green-700">Accepted column names:</p>
+              <div className="flex flex-wrap gap-1">
+                {[["Date","date","DATE","Transaction Date"],["Description","Narration","Details","Memo","Name"],["Amount","Value","Net Amount"]].map((group, i) => (
+                  <div key={i} className="flex flex-wrap gap-1">
+                    {group.map(n => (
+                      <span key={n} className="text-[10px] font-mono bg-white border border-green-200 text-green-700 px-1.5 py-0.5 rounded">{n}</span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-green-700 mt-1">Optional: <span className="font-mono bg-white border border-green-200 px-1 rounded">Type</span> <span className="font-mono bg-white border border-green-200 px-1 rounded">Balance</span> <span className="font-mono bg-white border border-green-200 px-1 rounded">Category</span></p>
+            </div>
+          </div>
+
+          {/* Format 2 */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-600 text-white">Format 2</span>
+              <p className="text-[10px] font-bold text-blue-700">Separate Debit / Credit columns</p>
+            </div>
+            <div className="rounded-xl border border-blue-200 bg-white overflow-hidden text-[10px]">
+              <div className="grid grid-cols-4 bg-blue-600 text-white font-black px-2 py-1.5 gap-1">
+                <span>Date</span><span>Description</span><span>Debit</span><span>Credit</span>
+              </div>
+              <div className="grid grid-cols-4 px-2 py-1.5 gap-1 border-b border-blue-100 text-foreground/70">
+                <span>01/06</span><span className="truncate">Payroll</span><span></span><span className="text-green-600">4500</span>
+              </div>
+              <div className="grid grid-cols-4 px-2 py-1.5 gap-1 text-foreground/70">
+                <span>02/06</span><span className="truncate">Amazon</span><span className="text-red-500">49.99</span><span></span>
+              </div>
+            </div>
+            <div className="bg-blue-50 rounded-xl px-3 py-2 space-y-1">
+              <p className="text-[10px] font-black text-blue-700">Accepted column names:</p>
+              <div className="flex flex-wrap gap-1">
+                {[["Debit","Withdrawal","Dr","Out"],["Credit","Deposit","Cr","In"]].map((group, i) => (
+                  <div key={i} className="flex flex-wrap gap-1">
+                    {group.map(n => (
+                      <span key={n} className="text-[10px] font-mono bg-white border border-blue-200 text-blue-700 px-1.5 py-0.5 rounded">{n}</span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-blue-700 mt-1">Optional: <span className="font-mono bg-white border border-blue-200 px-1 rounded">Balance</span> <span className="font-mono bg-white border border-blue-200 px-1 rounded">Category</span></p>
+            </div>
+          </div>
+
+          {/* Date formats */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 space-y-1.5">
+            <p className="text-[10px] font-black text-amber-700">📅 Supported date formats</p>
+            <div className="flex flex-wrap gap-1">
+              {["DD/MM/YYYY","MM/DD/YYYY","YYYY-MM-DD","DD-MMM-YYYY","Jan 1, 2025","1 Jan 2025"].map(f => (
+                <span key={f} className="text-[10px] font-mono bg-white border border-amber-200 text-amber-700 px-1.5 py-0.5 rounded">{f}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Tip */}
+          <div className="flex items-start gap-2 bg-white border border-blue-100 rounded-xl px-3 py-2">
+            <span className="text-base shrink-0 mt-0.5">💡</span>
+            <p className="text-[10px] text-foreground/70 leading-relaxed">
+              <strong>Pro tip:</strong> The header row must be in <strong>row 1</strong>. If your bank export has extra lines above the headers, delete them before analyzing.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Rotating Tips Panel ───────────────────────────────────────────────────────
 const TIPS = [
   { icon: "💡", color: "bg-amber-50 border-amber-300",  titleColor: "text-amber-700", title: "Supported column formats",      body: "Your sheet needs a header row with Date, Description, and Amount (or separate Debit/Credit columns). Balance column is optional." },
@@ -774,6 +899,9 @@ export default function App() {
                   </div>
                 </button>
               </div>
+
+              {/* ── Format Guide ── */}
+              <FormatGuide />
 
               {/* ── Features Grid ── */}
               <div>
