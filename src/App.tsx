@@ -45,14 +45,22 @@ function runExcel<T>(fn: (context: Excel.RequestContext) => Promise<T>): Promise
 }
 
 // ── KPI Card ─────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, color, icon }: { label: string; value: string; color: string; icon: string }) {
+function KpiCard({ label, value, color, icon, theme }: { label: string; value: string; color: string; icon: string; theme: "green" | "red" | "blue" | "amber" }) {
+  const themes = {
+    green: "kpi-green",
+    red:   "kpi-red",
+    blue:  "kpi-blue",
+    amber: "kpi-amber",
+  };
   return (
-    <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
+    <div className={`border rounded-2xl p-3.5 shadow-sm animate-fade-in-up ${themes[theme]}`}>
       <div className="flex items-center gap-1.5 mb-2">
-        <img src={icon} alt={label} className="w-5 h-5 object-contain" />
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+        <div className="w-6 h-6 rounded-lg bg-white/70 flex items-center justify-center shrink-0 shadow-sm">
+          <img src={icon} alt={label} className="w-4 h-4 object-contain" />
+        </div>
+        <p className="text-[10px] font-bold text-foreground/60 uppercase tracking-widest leading-tight">{label}</p>
       </div>
-      <p className={`text-xl font-extrabold tracking-tight ${color}`}>{value}</p>
+      <p className={`text-[22px] font-black tracking-tight leading-none ${color}`}>{value}</p>
     </div>
   );
 }
@@ -64,20 +72,20 @@ function ActionBtn({
   onClick: () => void; disabled?: boolean; children: React.ReactNode; variant?: "primary" | "secondary" | "ghost"; size?: "md" | "sm";
 }) {
   const base = size === "sm"
-    ? "flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-    : "flex-1 flex items-center justify-center gap-2 text-sm font-semibold py-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+    ? "flex items-center justify-center gap-1.5 text-xs font-bold py-1.5 px-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+    : "flex-1 flex items-center justify-center gap-2 text-sm font-bold py-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed";
   const styles = variant === "primary"
-    ? `${base} bg-primary text-primary-foreground hover:opacity-90 shadow-sm`
+    ? `${base} bg-primary text-primary-foreground hover:opacity-90 shadow-md shadow-primary/20`
     : variant === "ghost"
-    ? `${base} text-muted-foreground hover:text-foreground hover:bg-muted`
-    : `${base} bg-secondary text-secondary-foreground hover:bg-secondary/70 border border-border`;
+    ? `${base} text-muted-foreground hover:text-foreground hover:bg-muted/80`
+    : `${base} bg-white text-secondary-foreground hover:bg-muted/60 border border-border shadow-sm`;
   return <button onClick={onClick} disabled={disabled} className={styles}>{children}</button>;
 }
 
 // ── Pro Lock Badge ─────────────────────────────────────────────────────────────
 function ProBadge({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex items-center gap-1 text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-300 hover:bg-amber-200 transition-colors shrink-0">
+    <button onClick={onClick} className="flex items-center gap-1 text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-300 hover:bg-amber-200 transition-colors shrink-0">
       🔒 PRO
     </button>
   );
@@ -531,92 +539,94 @@ export default function App() {
       )}
 
       {/* ── Header ── */}
-      <header className="flex items-center gap-3 px-4 py-3 bg-white border-b border-border shadow-sm shrink-0">
-        <div className="flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden shadow-sm">
-          <img src={iconLogo} alt="App logo" className="w-9 h-9 object-cover" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-bold text-[15px] leading-tight text-foreground truncate">{appName}</div>
-          <div className="text-xs text-muted-foreground font-medium">Excel Add-in</div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Currency picker */}
-          <div className="relative">
-            <button
-              onClick={() => setShowCurrencyPicker((v) => !v)}
-              data-testid="button-currency-picker"
-              className="flex items-center gap-1 text-xs font-bold bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground px-2 py-1 rounded-lg border border-border transition-colors"
-              title="Change currency symbol"
-            >
-              <span className="font-mono">{symbol}</span>
-              <svg className="w-3 h-3 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-            {showCurrencyPicker && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowCurrencyPicker(false)} />
-                <div className="absolute right-0 top-full mt-1.5 z-50 bg-white border border-border rounded-xl shadow-xl w-52 overflow-hidden">
-                  <div className="px-3 py-2 border-b border-border">
-                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Currency Symbol</p>
+      <header className="shrink-0 bg-gradient-to-r from-emerald-700 via-green-600 to-teal-600 shadow-lg">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden shadow-md border-2 border-white/30">
+            <img src={iconLogo} alt="App logo" className="w-9 h-9 object-cover" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-black text-[15px] leading-tight text-white truncate tracking-tight">{appName}</div>
+            <div className="text-[10px] text-green-100/80 font-semibold tracking-wide uppercase">Excel Add-in</div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Currency picker */}
+            <div className="relative">
+              <button
+                onClick={() => setShowCurrencyPicker((v) => !v)}
+                data-testid="button-currency-picker"
+                className="flex items-center gap-1 text-xs font-bold bg-white/20 text-white hover:bg-white/30 px-2 py-1 rounded-lg border border-white/20 transition-colors backdrop-blur-sm"
+                title="Change currency symbol"
+              >
+                <span className="font-mono">{symbol}</span>
+                <svg className="w-3 h-3 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {showCurrencyPicker && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowCurrencyPicker(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 z-50 bg-white border border-border rounded-xl shadow-xl w-52 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-border bg-primary/5">
+                      <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Currency Symbol</p>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto py-1">
+                      {CURRENCIES.map((c) => (
+                        <button
+                          key={c.symbol}
+                          data-testid={`button-currency-${c.symbol}`}
+                          onClick={() => { setSymbol(c.symbol); setShowCurrencyPicker(false); }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted/50 transition-colors ${symbol === c.symbol ? "bg-primary/5" : ""}`}
+                        >
+                          <span className={`font-mono text-sm font-bold w-8 shrink-0 ${symbol === c.symbol ? "text-primary" : "text-foreground"}`}>{c.symbol}</span>
+                          <span className="text-xs text-muted-foreground truncate">{c.label}</span>
+                          {symbol === c.symbol && (
+                            <svg className="w-3.5 h-3.5 text-primary shrink-0 ml-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="max-h-64 overflow-y-auto py-1">
-                    {CURRENCIES.map((c) => (
-                      <button
-                        key={c.symbol}
-                        data-testid={`button-currency-${c.symbol}`}
-                        onClick={() => { setSymbol(c.symbol); setShowCurrencyPicker(false); }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted/50 transition-colors ${symbol === c.symbol ? "bg-primary/5" : ""}`}
-                      >
-                        <span className={`font-mono text-sm font-bold w-8 shrink-0 ${symbol === c.symbol ? "text-primary" : "text-foreground"}`}>{c.symbol}</span>
-                        <span className="text-xs text-muted-foreground truncate">{c.label}</span>
-                        {symbol === c.symbol && (
-                          <svg className="w-3.5 h-3.5 text-primary shrink-0 ml-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
+                </>
+              )}
+            </div>
+
+            {isPro && (
+              <button
+                onClick={openSubscription}
+                className="flex items-center gap-1 text-[10px] font-black bg-amber-400 text-amber-900 px-2 py-1 rounded-full tracking-wide hover:bg-amber-300 transition-colors shadow-sm"
+              >
+                <img src={iconPro} alt="Pro" className="w-3.5 h-3.5 object-contain" /> PRO
+              </button>
+            )}
+            {step === "results" && (
+              <button
+                onClick={doReAnalyze}
+                disabled={reAnalyzing}
+                title="Re-read the active sheet and refresh results"
+                data-testid="button-reanalyze"
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-white/70 hover:text-white hover:bg-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <svg
+                  className={`w-4 h-4 ${reAnalyzing ? "animate-spin" : ""}`}
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                >
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+              </button>
+            )}
+            {(step === "results" || step === "error" || step === "paste" || step === "subscription") && (
+              <button onClick={reset}
+                className="flex items-center gap-1 text-sm font-bold text-white/80 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-white/20 transition-colors">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Back
+              </button>
             )}
           </div>
-
-          {isPro && (
-            <button
-              onClick={openSubscription}
-              className="flex items-center gap-1 text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 tracking-wide hover:bg-amber-200 transition-colors"
-            >
-              <img src={iconPro} alt="Pro" className="w-3.5 h-3.5 object-contain" /> PRO
-            </button>
-          )}
-          {step === "results" && (
-            <button
-              onClick={doReAnalyze}
-              disabled={reAnalyzing}
-              title="Re-read the active sheet and refresh results"
-              data-testid="button-reanalyze"
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <svg
-                className={`w-4 h-4 ${reAnalyzing ? "animate-spin" : ""}`}
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-              >
-                <polyline points="23 4 23 10 17 10" />
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-              </svg>
-            </button>
-          )}
-          {(step === "results" || step === "error" || step === "paste" || step === "subscription") && (
-            <button onClick={reset}
-              className="flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              Back
-            </button>
-          )}
         </div>
       </header>
 
@@ -625,107 +635,158 @@ export default function App() {
 
         {/* ── IDLE ── */}
         {step === "idle" && (
-          <div className="flex flex-col items-center justify-center min-h-full px-5 py-8 text-center gap-7">
-            {/* Hero */}
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-md">
+          <div className="flex flex-col min-h-full">
+            {/* Hero band */}
+            <div className="bg-gradient-to-br from-emerald-600 via-green-500 to-teal-500 px-5 pt-7 pb-8 text-center relative overflow-hidden">
+              {/* decorative circles */}
+              <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-white/10" />
+              <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/10" />
+              <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl border-2 border-white/40 mx-auto mb-4 animate-float">
                 <img src={iconLogo} alt="Financial Data Analyzer" className="w-16 h-16 object-cover" />
               </div>
-              <div>
-                <h1 className="text-xl font-extrabold text-foreground tracking-tight mb-1">{appName}</h1>
-                <p className="text-sm text-muted-foreground max-w-[230px] mx-auto leading-relaxed">{appTagline}</p>
+              <h1 className="text-xl font-black text-white tracking-tight mb-1.5">{appName}</h1>
+              <p className="text-sm text-green-50/90 leading-relaxed max-w-[240px] mx-auto">{appTagline}</p>
+            </div>
+
+            <div className="px-4 -mt-3 space-y-4 pb-6">
+              {/* ── Action cards ── */}
+              <div className="space-y-2.5">
+                <button onClick={analyzeSheet}
+                  data-testid="button-analyze-sheet"
+                  className="w-full text-left bg-white border-2 border-border rounded-2xl p-4 hover:border-primary hover:shadow-lg transition-all group feature-card">
+                  <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center shrink-0 group-hover:bg-green-200 transition-colors overflow-hidden border border-green-200">
+                      <img src={iconAnalyze} alt="Analyze sheet" className="w-8 h-8 object-contain" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-foreground">Analyze Active Sheet</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Instantly read & categorize your Excel data</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-all">
+                      <svg className="w-4 h-4 text-primary group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </div>
+                  </div>
+                </button>
+
+                <button onClick={() => setStep("paste")}
+                  data-testid="button-paste-csv"
+                  className="w-full text-left bg-white border-2 border-border rounded-2xl p-4 hover:border-accent hover:shadow-lg transition-all group feature-card">
+                  <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-200 transition-colors overflow-hidden border border-blue-200">
+                      <img src={iconPaste} alt="Paste CSV" className="w-8 h-8 object-contain" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-foreground">Paste CSV / Bank Statement</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Import directly from your bank portal</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center shrink-0 group-hover:bg-accent group-hover:text-white transition-all">
+                      <svg className="w-4 h-4 text-accent group-hover:text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </div>
+                  </div>
+                </button>
               </div>
-            </div>
 
-            {/* Action cards */}
-            <div className="w-full max-w-[300px] space-y-3">
-              <button onClick={analyzeSheet}
-                className="w-full text-left bg-white border-2 border-border rounded-xl p-4 hover:border-primary/60 hover:shadow-md transition-all group">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors overflow-hidden">
-                    <img src={iconAnalyze} alt="Analyze sheet" className="w-8 h-8 object-contain" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">Analyze Active Sheet</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Read data already in Excel</p>
-                  </div>
-                  <svg className="w-4 h-4 text-muted-foreground ml-auto shrink-0 group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </div>
-              </button>
-
-              <button onClick={() => setStep("paste")}
-                className="w-full text-left bg-white border-2 border-border rounded-xl p-4 hover:border-primary/60 hover:shadow-md transition-all group">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 group-hover:bg-accent/20 transition-colors overflow-hidden">
-                    <img src={iconPaste} alt="Paste CSV" className="w-8 h-8 object-contain" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">Paste CSV / Text</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Import from your bank portal</p>
-                  </div>
-                  <svg className="w-4 h-4 text-muted-foreground ml-auto shrink-0 group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </div>
-              </button>
-            </div>
-
-            {/* Free vs Pro */}
-            {!isPro && (
-              <div className="w-full max-w-[300px] rounded-xl border-2 border-amber-200 overflow-hidden shadow-sm">
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-2.5 flex items-center justify-between border-b border-amber-200">
-                  <p className="text-sm font-bold text-amber-800">Free vs Pro</p>
-                  <button onClick={() => setShowSignIn(true)}
-                    className="text-xs font-bold text-white bg-[#0078d4] hover:bg-[#106ebe] px-3 py-1 rounded-lg transition-colors shadow-sm">
-                    Get Pro
-                  </button>
-                </div>
-                <div className="p-3 space-y-1.5 bg-white">
+              {/* ── Features Grid ── */}
+              <div>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2.5">What you get</p>
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    { label: "Analyze transactions", free: true },
-                    { label: "Auto-categorize (14 categories)", free: true },
-                    { label: "Monthly trend chart", free: true },
-                    { label: "Financial health score", free: true },
-                    { label: "Search & filter transactions", free: true },
-                    { label: "Amount range filter", free: true },
-                    { label: "Top 5 largest expenses", free: true },
-                    { label: "Top merchants breakdown", free: true },
-                    { label: "Average daily spending stat", free: true },
-                    { label: "Income sources breakdown", free: true },
-                    { label: "Highlight cells by category", free: false },
-                    { label: "Export Excel summary sheet", free: false },
-                    { label: "Download CSV with categories", free: false },
-                    { label: "Export color-coded PDF report", free: false },
-                    { label: "Recurring subscriptions detector", free: false },
-                    { label: "Duplicate transaction flags", free: false },
-                    { label: "Category budget tracker", free: false },
-                    { label: "Tax deduction tracker", free: false },
-                    { label: "Cash flow projection", free: false },
-                    { label: "Full merchant spending report", free: false },
-                  ].map((f) => (
-                    <div key={f.label} className="flex items-center gap-2.5">
-                      <span className={`text-sm shrink-0 ${f.free ? "text-green-600" : "text-muted-foreground/40"}`}>
-                        {f.free ? "✓" : "🔒"}
-                      </span>
-                      <span className={`text-xs ${f.free ? "text-foreground font-medium" : "text-muted-foreground/60"}`}>
-                        {f.label}
-                      </span>
+                    { emoji: "⚡", title: "Instant Analysis", desc: "Auto-categorize 14 expense types in seconds", color: "bg-amber-50 border-amber-200", textColor: "text-amber-700" },
+                    { emoji: "🎨", title: "Color Highlights", desc: "Color-code cells by category in Excel", color: "bg-green-50 border-green-200", textColor: "text-green-700" },
+                    { emoji: "📊", title: "Visual Reports", desc: "Charts, trends, and health scores", color: "bg-blue-50 border-blue-200", textColor: "text-blue-700" },
+                    { emoji: "💼", title: "Budget Tracker", desc: "Set limits & track category spending", color: "bg-red-50 border-red-200", textColor: "text-red-700" },
+                  ].map((f, i) => (
+                    <div key={f.title}
+                      className={`border rounded-xl p-3 ${f.color} animate-fade-in-up anim-delay-${(i + 1) * 100}`}>
+                      <span className="text-xl block mb-1">{f.emoji}</span>
+                      <p className={`text-xs font-black ${f.textColor}`}>{f.title}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{f.desc}</p>
                     </div>
                   ))}
                 </div>
               </div>
-            )}
 
-            {!isPro && (
-              <button
-                onClick={() => setShowSignIn(true)}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-2"
-              >
-                Already subscribed? Sign in with Microsoft
-              </button>
-            )}
+              {/* ── How it works ── */}
+              <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                <div className="bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-2.5">
+                  <p className="text-xs font-black text-white uppercase tracking-widest">How It Works</p>
+                </div>
+                <div className="p-3 space-y-3">
+                  {[
+                    { n: "1", color: "bg-green-500", label: "Open your bank statement in Excel", desc: "Or paste CSV text directly into the add-in" },
+                    { n: "2", color: "bg-blue-500",  label: "Click Analyze Active Sheet",          desc: "We auto-detect columns and read all transactions" },
+                    { n: "3", color: "bg-red-500",   label: "Review insights & take action",       desc: "Export reports, highlight cells, track budgets" },
+                  ].map((s) => (
+                    <div key={s.n} className="flex gap-3">
+                      <div className={`w-6 h-6 rounded-full ${s.color} text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-sm`}>{s.n}</div>
+                      <div>
+                        <p className="text-xs font-bold text-foreground leading-tight">{s.label}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{s.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Free vs Pro ── */}
+              {!isPro && (
+                <div className="rounded-2xl border-2 border-amber-300 overflow-hidden shadow-sm">
+                  <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-black text-white">Free vs Pro</p>
+                      <p className="text-[10px] text-amber-100">Upgrade via Microsoft AppSource</p>
+                    </div>
+                    <button onClick={() => setShowSignIn(true)}
+                      className="text-xs font-black text-amber-800 bg-white hover:bg-amber-50 px-3 py-1.5 rounded-lg transition-colors shadow-sm">
+                      Get Pro →
+                    </button>
+                  </div>
+                  <div className="bg-white p-3 space-y-1.5">
+                    {[
+                      { label: "Analyze & categorize transactions",  free: true },
+                      { label: "Monthly trend chart",                free: true },
+                      { label: "Financial health score",             free: true },
+                      { label: "Search, filter & sort transactions", free: true },
+                      { label: "Top 5 largest expenses",             free: true },
+                      { label: "Top merchants breakdown",            free: true },
+                      { label: "Income sources breakdown",           free: true },
+                      { label: "Average daily & monthly spend",      free: true },
+                      { label: "Highlight cells by category 🎨",     free: false },
+                      { label: "Export Excel summary sheet",         free: false },
+                      { label: "Download CSV with categories",       free: false },
+                      { label: "Color-coded PDF report",             free: false },
+                      { label: "Recurring subscriptions detector",   free: false },
+                      { label: "Duplicate transaction detector",     free: false },
+                      { label: "Category budget tracker",            free: false },
+                      { label: "Tax deduction tagger 🧾",            free: false },
+                      { label: "Cash flow projection",               free: false },
+                    ].map((f) => (
+                      <div key={f.label} className="flex items-center gap-2.5">
+                        <span className={`text-sm shrink-0 ${f.free ? "text-green-600" : "text-muted-foreground/30"}`}>
+                          {f.free ? "✓" : "🔒"}
+                        </span>
+                        <span className={`text-xs ${f.free ? "text-foreground font-medium" : "text-muted-foreground/50"}`}>
+                          {f.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!isPro && (
+                <button
+                  onClick={() => setShowSignIn(true)}
+                  className="w-full text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-2 py-1"
+                >
+                  Already subscribed? Sign in with Microsoft
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -783,16 +844,24 @@ export default function App() {
 
         {/* ── LOADING / IMPORTING ── */}
         {(step === "importing" || step === "loading") && (
-          <div className="flex flex-col items-center justify-center h-full gap-4">
-            <div className="relative w-14 h-14">
+          <div className="flex flex-col items-center justify-center h-full gap-5 px-6">
+            <div className="relative w-18 h-18 flex items-center justify-center">
+              <div className="absolute w-16 h-16 rounded-full bg-primary/10 animate-pulse-ring" />
               <div className="w-14 h-14 border-4 border-primary/20 rounded-full" />
-              <div className="absolute inset-0 w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <div className="absolute inset-0 w-14 h-14 m-auto border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
-            <div className="text-center">
-              <p className="text-base font-bold text-foreground">
+            <div className="text-center space-y-1">
+              <p className="text-base font-black text-foreground">
                 {step === "importing" ? "Writing to Excel…" : "Analyzing transactions…"}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">This will only take a moment</p>
+              <p className="text-sm text-muted-foreground">Hang tight, this only takes a moment</p>
+              {step === "loading" && (
+                <div className="flex justify-center gap-1 pt-2">
+                  {["🔍", "📊", "💡"].map((e, i) => (
+                    <span key={i} className="text-lg animate-fade-in-up" style={{ animationDelay: `${i * 0.2}s` }}>{e}</span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -800,16 +869,18 @@ export default function App() {
         {/* ── ERROR ── */}
         {step === "error" && (
           <div className="flex flex-col items-center justify-center h-full px-5 py-8 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
-              <svg className="w-7 h-7 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <div className="w-16 h-16 rounded-2xl bg-red-100 border-2 border-red-200 flex items-center justify-center mb-4 animate-scale-in shadow-md">
+              <svg className="w-8 h-8 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
-            <h3 className="text-base font-bold text-destructive mb-2">Analysis Failed</h3>
-            <p className="text-sm text-muted-foreground mb-5 whitespace-pre-wrap leading-relaxed max-w-xs">{error}</p>
+            <h3 className="text-lg font-black text-destructive mb-2 tracking-tight">Analysis Failed</h3>
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5 max-w-xs text-left">
+              <p className="text-xs text-red-700 leading-relaxed whitespace-pre-wrap font-mono">{error}</p>
+            </div>
             <button onClick={reset}
-              className="text-sm font-bold bg-muted hover:bg-muted/70 text-foreground px-6 py-2.5 rounded-xl transition-colors">
+              className="text-sm font-black bg-primary text-white px-6 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-md shadow-primary/20">
               ← Try Again
             </button>
           </div>
@@ -820,60 +891,53 @@ export default function App() {
           <div className="flex flex-col h-full">
 
             {/* Action buttons row */}
-            <div className="flex gap-2 px-4 pt-4 pb-2 shrink-0 flex-wrap">
+            <div className="flex gap-1.5 px-4 pt-3 pb-2 shrink-0 flex-wrap bg-white border-b border-border shadow-sm">
               <ActionBtn variant="secondary" onClick={handleHighlight} disabled={highlighting || clearing} size="sm">
                 {highlighting
-                  ? <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   : highlightDone
-                  ? <svg className="w-3.5 h-3.5 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                  : <img src={iconHighlight} alt="Highlight" className="w-3.5 h-3.5 object-contain opacity-90" />
+                  ? <svg className="w-3 h-3 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                  : <img src={iconHighlight} alt="Highlight" className="w-3 h-3 object-contain" />
                 }
                 {highlightDone ? "Done!" : "Highlight"}
-                {!isPro && <span className="text-[10px] opacity-60">🔒</span>}
+                {!isPro && <span className="text-[9px]">🔒</span>}
               </ActionBtn>
               <ActionBtn variant="ghost" onClick={doClearHighlights} disabled={clearing || highlighting} size="sm">
                 {clearing
-                  ? <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   : clearDone
-                  ? <svg className="w-3.5 h-3.5 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                  : <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 5H9l-7 7 7 7h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+                  ? <svg className="w-3 h-3 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                  : <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 5H9l-7 7 7 7h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
                 }
                 {clearDone ? "Cleared!" : "Clear"}
               </ActionBtn>
               <ActionBtn onClick={handleExport} disabled={exporting} size="sm">
                 {exporting
-                  ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   : exportDone
-                  ? <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                  : <img src={iconExport} alt="Export" className="w-3.5 h-3.5 object-contain opacity-90" />
+                  ? <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                  : <img src={iconExport} alt="Export" className="w-3 h-3 object-contain" />
                 }
                 {exportDone ? "Exported!" : "Export"}
-                {!isPro && <span className="text-[10px] opacity-60">🔒</span>}
+                {!isPro && <span className="text-[9px]">🔒</span>}
               </ActionBtn>
               <ActionBtn variant="secondary" onClick={handleExportCsv} size="sm">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                CSV
-                {!isPro && <span className="text-[10px] opacity-60">🔒</span>}
+                CSV {!isPro && <span className="text-[9px]">🔒</span>}
               </ActionBtn>
               <ActionBtn variant="secondary" onClick={handleExportPdf} size="sm">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="9" y1="15" x2="15" y2="15"/>
-                  <line x1="9" y1="11" x2="15" y2="11"/>
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
                 </svg>
-                PDF
-                {!isPro && <span className="text-[10px] opacity-60">🔒</span>}
+                PDF {!isPro && <span className="text-[9px]">🔒</span>}
               </ActionBtn>
             </div>
 
             {/* Action error banner */}
             {actionError && (
-              <div className="mx-4 mb-1 flex items-start gap-2 bg-destructive/10 border border-destructive/20 rounded-xl px-3 py-2.5 shrink-0">
+              <div className="mx-4 mt-2 mb-0 flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 shrink-0">
                 <svg className="w-4 h-4 text-destructive shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
@@ -889,26 +953,33 @@ export default function App() {
             {/* Upsell banner */}
             {!isPro && (
               <button onClick={() => setShowSignIn(true)}
-                className="mx-4 mb-2 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl px-4 py-2.5 hover:border-blue-400 transition-all group">
+                className="mx-4 mt-2 mb-1 flex items-center justify-between bg-gradient-to-r from-green-600 to-teal-600 rounded-xl px-4 py-2.5 hover:opacity-90 transition-all group shadow-sm">
                 <div className="text-left">
-                  <p className="text-xs font-bold text-blue-800">Unlock Pro via AppSource</p>
-                  <p className="text-[11px] text-blue-600 mt-0.5">Budgets · CSV · Recurring · Duplicates · Export</p>
+                  <p className="text-xs font-black text-white">🔒 Unlock Pro Features</p>
+                  <p className="text-[10px] text-green-100 mt-0.5">Budgets · Export · Recurring · Tax Tracker</p>
                 </div>
-                <svg className="w-4 h-4 text-blue-500 shrink-0 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <svg className="w-4 h-4 text-white shrink-0 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
               </button>
             )}
 
             {/* Tabs */}
-            <div className="flex border-b border-border shrink-0 px-1">
-              {(["overview", "categories", "transactions", "budget"] as const).map((tab) => {
-                const isProTab = tab === "budget";
+            <div className="flex border-b border-border shrink-0 bg-white">
+              {([
+                { id: "overview",      label: "Overview",      icon: "📈" },
+                { id: "categories",    label: "Categories",    icon: "🏷️" },
+                { id: "transactions",  label: "Transactions",  icon: "📋" },
+                { id: "budget",        label: "Budget",        icon: "💰" },
+              ] as const).map((tab) => {
+                const isProTab = tab.id === "budget";
+                const isActive = activeTab === tab.id;
                 return (
-                  <button key={tab} onClick={() => { if (tab === "budget") handleBudgetTab(); else setActiveTab(tab); }}
-                    className={`flex-1 py-2 text-xs font-semibold capitalize transition-all flex items-center justify-center gap-1 ${activeTab === tab ? "border-b-2 border-primary text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                    {tab}
-                    {isProTab && !isPro && <span className="text-[9px]">🔒</span>}
+                  <button key={tab.id}
+                    onClick={() => { if (tab.id === "budget") handleBudgetTab(); else setActiveTab(tab.id); }}
+                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wide transition-all flex flex-col items-center gap-0.5 relative ${isActive ? "text-primary tab-indicator" : "text-muted-foreground hover:text-foreground"}`}>
+                    <span className="text-sm leading-none">{tab.icon}</span>
+                    <span>{tab.label}{isProTab && !isPro ? " 🔒" : ""}</span>
                   </button>
                 );
               })}
@@ -922,10 +993,10 @@ export default function App() {
                 <>
                   {/* KPI grid */}
                   <div className="grid grid-cols-2 gap-3">
-                    <KpiCard label="Income" value={fmt(summary.totalIncome)} color="text-green-600" icon={iconIncome} />
-                    <KpiCard label="Expenses" value={fmt(summary.totalExpenses)} color="text-red-500" icon={iconExpenses} />
-                    <KpiCard label="Net Savings" value={fmt(summary.net)} color={summary.net >= 0 ? "text-blue-600" : "text-red-500"} icon={iconSavings} />
-                    <KpiCard label="Savings Rate" value={`${summary.savingsRate}%`} color={summary.savingsRate >= 20 ? "text-green-600" : summary.savingsRate >= 10 ? "text-yellow-600" : "text-red-500"} icon={iconRate} />
+                    <KpiCard label="Income" value={fmt(summary.totalIncome)} color="text-green-700" icon={iconIncome} theme="green" />
+                    <KpiCard label="Expenses" value={fmt(summary.totalExpenses)} color="text-red-600" icon={iconExpenses} theme="red" />
+                    <KpiCard label="Net Savings" value={fmt(summary.net)} color={summary.net >= 0 ? "text-blue-700" : "text-red-600"} icon={iconSavings} theme={summary.net >= 0 ? "blue" : "red"} />
+                    <KpiCard label="Savings Rate" value={`${summary.savingsRate}%`} color={summary.savingsRate >= 20 ? "text-green-700" : summary.savingsRate >= 10 ? "text-amber-700" : "text-red-600"} icon={iconRate} theme={summary.savingsRate >= 20 ? "green" : "amber"} />
                   </div>
 
                   {/* Health Score */}
