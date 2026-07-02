@@ -77,12 +77,12 @@ export async function notifyExpiryReminder({ licenseKey, planLabel, expiresAt, d
   const text = [
     `Hi,`,
     ``,
-    `Your Bank Statement Analyzer ${planLabel} subscription is expiring in ${daysLeft} day${daysLeft === 1 ? "" : "s"} (${expDate}).`,
+    `Your Financial Data Analyzer ${planLabel} subscription is expiring in ${daysLeft} day${daysLeft === 1 ? "" : "s"} (${expDate}).`,
     ``,
     `To continue using Pro features, open the add-in and renew by paying for a new subscription.`,
     `Your license key: ${licenseKey}`,
     ``,
-    `Thank you for using Bank Statement Analyzer!`,
+    `Thank you for using Financial Data Analyzer!`,
   ].join("\n");
   await sendEmail(smtpCfg, subject, text, userEmail);
 }

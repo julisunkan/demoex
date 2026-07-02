@@ -18,7 +18,7 @@ export default function EulaPage() {
         <p className="text-xs text-muted-foreground">Last updated: June 2026</p>
 
         <p>
-          This End User License Agreement ("Agreement") is a legal agreement between you ("User") and Bank Analyzer Pro ("Licensor") for the use of <strong>Bank Statement Analyzer</strong> ("the Add-in"), a Microsoft Excel Add-in.
+          This End User License Agreement ("Agreement") is a legal agreement between you ("User") and Financial Data Analyzer ("Licensor") for the use of <strong>Financial Data Analyzer</strong> ("the Add-in"), a Microsoft Excel Add-in.
         </p>
 
         <section className="space-y-1.5">
@@ -90,7 +90,7 @@ export default function EulaPage() {
         </section>
 
         <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-          By installing or using Bank Statement Analyzer, you agree to be bound by the terms of this Agreement.
+          By installing or using Financial Data Analyzer, you agree to be bound by the terms of this Agreement.
         </p>
       </div>
     </div>

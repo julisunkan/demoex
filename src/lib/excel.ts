@@ -208,7 +208,7 @@ export async function createSummarySheet(summary: Summary, context: Excel.Reques
   const now = new Date().toLocaleDateString("en-US");
 
   const data: (string | number)[][] = [
-    ["Bank Statement Analyzer Pro — Summary Report"],
+    ["Financial Data Analyzer Pro — Summary Report"],
     [`Generated: ${now}`],
     [],
     ["OVERVIEW"],

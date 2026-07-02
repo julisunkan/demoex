@@ -176,7 +176,7 @@ export default function SignInGate({ onUnlocked, onDismiss }: Props) {
                       {account?.username && (
                         <span className="block font-medium mb-0.5">{account.username}</span>
                       )}
-                      Your Microsoft account doesn't have an active Bank Statement Analyzer subscription.
+                      Your Microsoft account doesn't have an active Financial Data Analyzer subscription.
                     </p>
                   </div>
                 </div>

@@ -8,13 +8,13 @@
 
   <Version>2.0.0.0</Version>
 
-  <ProviderName>Bank Analyzer Pro</ProviderName>
+  <ProviderName>Financial Data Analyzer</ProviderName>
 
   <DefaultLocale>en-US</DefaultLocale>
 
-  <DisplayName DefaultValue="Bank Statement Analyzer"/>
+  <DisplayName DefaultValue="Financial Data Analyzer"/>
 
-  <Description DefaultValue="Analyze bank statements and categorize transactions. Subscription required — get it on Microsoft AppSource."/>
+  <Description DefaultValue="Analyze financial data, categorize transactions, track budgets, and export reports. Free &amp; Pro plans available — get it on Microsoft AppSource."/>
 
   <IconUrl DefaultValue="https://f9c54bff-d028-4dbd-bef2-94a4294151b9-00-226leqeczdzxf.worf.replit.dev/icon-32.png"/>
 

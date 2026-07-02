@@ -38,7 +38,7 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    await sendReportEmail(smtpCfg, email, html, appName || "Bank Statement Analyzer");
+    await sendReportEmail(smtpCfg, email, html, appName || "Financial Data Analyzer");
     console.log(`[send-report] Report emailed to ${email}`);
     res.json({ ok: true });
   } catch (err) {

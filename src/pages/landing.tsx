@@ -173,7 +173,7 @@ export default function LandingPage() {
               <span className="text-white text-lg">📊</span>
             </div>
             <div>
-              <p className="text-white font-bold">Bank Statement Analyzer</p>
+              <p className="text-white font-bold">Financial Data Analyzer</p>
               <p className="text-blue-100 text-xs">Excel Add-in · AppSource</p>
             </div>
           </div>
@@ -195,7 +195,7 @@ export default function LandingPage() {
               <div className="text-center">
                 <h1 className="text-lg font-bold text-gray-900">Complete your setup</h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Sign in with the Microsoft account used to purchase Bank Statement Analyzer on AppSource.
+                  Sign in with the Microsoft account used to purchase Financial Data Analyzer on AppSource.
                 </p>
               </div>
               <button
@@ -303,7 +303,7 @@ export default function LandingPage() {
                 <p className="text-sm font-semibold text-gray-900">Next steps</p>
                 {[
                   "Open Microsoft Excel",
-                  'Go to Insert → Add-ins → search "Bank Statement Analyzer"',
+                  'Go to Insert → Add-ins → search "Financial Data Analyzer"',
                   "Click Open to launch the add-in",
                   'Click "Enter License Key" and paste your key above',
                 ].map((s, i) => (

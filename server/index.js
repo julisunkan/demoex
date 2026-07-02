@@ -20,7 +20,7 @@ app.use("/api/config",      settingsRouter);
 app.use("/api/send-report", emailReportRouter);
 app.use("/api/tickets",     ticketsRouter);
 
-app.get("/",           (_req, res) => res.send("Bank Statement Analyzer API is running."));
+app.get("/",           (_req, res) => res.send("Financial Data Analyzer API is running."));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 const HOST = "0.0.0.0";

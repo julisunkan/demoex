@@ -18,7 +18,7 @@ export default function PrivacyPage() {
         <p className="text-xs text-muted-foreground">Last updated: June 2026</p>
 
         <p>
-          This Privacy Policy describes how <strong>Bank Statement Analyzer</strong> ("the Add-in", "we", "us") collects, uses, and handles your information when you use our Microsoft Excel Add-in service.
+          This Privacy Policy describes how <strong>Financial Data Analyzer</strong> ("the Add-in", "we", "us") collects, uses, and handles your information when you use our Microsoft Excel Add-in service.
         </p>
 
         <section className="space-y-1.5">
@@ -64,7 +64,7 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>As required by applicable law or legal process;</li>
-            <li>To protect the rights, property, or safety of Bank Analyzer Pro or our users;</li>
+            <li>To protect the rights, property, or safety of Financial Data Analyzer or our users;</li>
             <li>With blockchain networks (Tron, BSC, Ethereum) solely to verify payment transactions — only the transaction hash you provide is used.</li>
           </ul>
         </section>
@@ -72,7 +72,7 @@ export default function PrivacyPage() {
         <section className="space-y-1.5">
           <h2 className="font-bold text-base">5. Cookies &amp; Tracking</h2>
           <p>
-            Bank Statement Analyzer does not use cookies, analytics trackers, or any third-party tracking technologies within the Add-in. Your usage of the Add-in is not monitored or recorded.
+            Financial Data Analyzer does not use cookies, analytics trackers, or any third-party tracking technologies within the Add-in. Your usage of the Add-in is not monitored or recorded.
           </p>
         </section>
 
@@ -93,14 +93,14 @@ export default function PrivacyPage() {
         <section className="space-y-1.5">
           <h2 className="font-bold text-base">8. Children's Privacy</h2>
           <p>
-            Bank Statement Analyzer is not directed at children under the age of 13. We do not knowingly collect personal information from children.
+            Financial Data Analyzer is not directed at children under the age of 13. We do not knowingly collect personal information from children.
           </p>
         </section>
 
         <section className="space-y-1.5">
           <h2 className="font-bold text-base">9. Changes to This Policy</h2>
           <p>
-            We may update this Privacy Policy from time to time. The updated version will be available within the Add-in with a revised "Last updated" date. Continued use of Bank Statement Analyzer after changes constitutes acceptance of the updated policy.
+            We may update this Privacy Policy from time to time. The updated version will be available within the Add-in with a revised "Last updated" date. Continued use of Financial Data Analyzer after changes constitutes acceptance of the updated policy.
           </p>
         </section>
 

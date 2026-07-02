@@ -133,7 +133,7 @@ export default function App() {
   const [csvError, setCsvError] = useState("");
   const [isPro, setIsPro] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"highlight" | "export" | "csv" | "pdf" | "budget" | "recurring" | null>(null);
+  const [pendingAction, setPendingAction] = useState<"highlight" | "export" | "csv" | "pdf" | "budget" | "recurring" | "tax" | null>(null);
   const [txSearch, setTxSearch] = useState("");
   const [txCategoryFilter, setTxCategoryFilter] = useState("All");
   const [txTypeFilter, setTxTypeFilter] = useState<"all" | "credit" | "debit">("all");
@@ -151,6 +151,10 @@ export default function App() {
   const [txNotes, setTxNotes] = useState<Record<number, string>>({});
   const [flaggedRows, setFlaggedRows] = useState<Set<number>>(new Set());
   const [showFlagged, setShowFlagged] = useState(false);
+  const [txAmountMin, setTxAmountMin] = useState("");
+  const [txAmountMax, setTxAmountMax] = useState("");
+  const [taxRows, setTaxRows] = useState<Set<number>>(new Set());
+  const [pendingTaxRow, setPendingTaxRow] = useState<number | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -180,6 +184,18 @@ export default function App() {
     if (action === "pdf") setShowPdfDialog(true);
     if (action === "budget") setActiveTab("budget");
     if (action === "recurring") setShowRecurring(true);
+    if (action === "tax") {
+      setPendingTaxRow((row) => {
+        if (row !== null) {
+          setTaxRows((prev) => {
+            const next = new Set(prev);
+            if (next.has(row)) next.delete(row); else next.add(row);
+            return next;
+          });
+        }
+        return null;
+      });
+    }
   }, [pendingAction]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const analyzeSheet = useCallback(async () => {
@@ -342,6 +358,18 @@ export default function App() {
   }, [requirePro]);
   const handleBudgetTab = useCallback(() => { if (requirePro("budget")) setActiveTab("budget"); }, [requirePro]);
   const handleToggleRecurring = useCallback(() => { if (requirePro("recurring")) setShowRecurring((v) => !v); }, [requirePro]);
+  const handleToggleTax = useCallback((row: number) => {
+    if (!isPro) {
+      setPendingTaxRow(row);
+      requirePro("tax");
+      return;
+    }
+    setTaxRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(row)) next.delete(row); else next.add(row);
+      return next;
+    });
+  }, [isPro, requirePro]);
 
   const handleRecategorize = useCallback((row: number, newCat: Category) => {
     if (!summary) return;
@@ -364,6 +392,7 @@ export default function App() {
     setClearing(false); setClearDone(false);
     setCategoryOverrides({}); setExpandedTxRow(null); setTxNotes({});
     setFlaggedRows(new Set()); setShowFlagged(false);
+    setTxAmountMin(""); setTxAmountMax(""); setTaxRows(new Set()); setPendingTaxRow(null);
   };
 
   const openSubscription = () => setStep("subscription");
@@ -380,7 +409,9 @@ export default function App() {
         const matchType = txTypeFilter === "all" || tx.type === txTypeFilter;
         const matchDupe = !showDuplicates || summary.duplicateRows.has(tx.row);
         const matchFlag = !showFlagged || flaggedRows.has(tx.row);
-        return matchSearch && matchCat && matchType && matchDupe && matchFlag;
+        const matchMin = txAmountMin === "" || tx.amount >= Number(txAmountMin);
+        const matchMax = txAmountMax === "" || tx.amount <= Number(txAmountMax);
+        return matchSearch && matchCat && matchType && matchDupe && matchFlag && matchMin && matchMax;
       })
     : [];
 
@@ -598,7 +629,7 @@ export default function App() {
             {/* Hero */}
             <div className="flex flex-col items-center gap-3">
               <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-md">
-                <img src={iconLogo} alt="Bank Statement Analyzer" className="w-16 h-16 object-cover" />
+                <img src={iconLogo} alt="Financial Data Analyzer" className="w-16 h-16 object-cover" />
               </div>
               <div>
                 <h1 className="text-xl font-extrabold text-foreground tracking-tight mb-1">{appName}</h1>
@@ -658,7 +689,11 @@ export default function App() {
                     { label: "Monthly trend chart", free: true },
                     { label: "Financial health score", free: true },
                     { label: "Search & filter transactions", free: true },
+                    { label: "Amount range filter", free: true },
+                    { label: "Top 5 largest expenses", free: true },
                     { label: "Top merchants breakdown", free: true },
+                    { label: "Average daily spending stat", free: true },
+                    { label: "Income sources breakdown", free: true },
                     { label: "Highlight cells by category", free: false },
                     { label: "Export Excel summary sheet", free: false },
                     { label: "Download CSV with categories", free: false },
@@ -666,6 +701,9 @@ export default function App() {
                     { label: "Recurring subscriptions detector", free: false },
                     { label: "Duplicate transaction flags", free: false },
                     { label: "Category budget tracker", free: false },
+                    { label: "Tax deduction tracker", free: false },
+                    { label: "Cash flow projection", free: false },
+                    { label: "Full merchant spending report", free: false },
                   ].map((f) => (
                     <div key={f.label} className="flex items-center gap-2.5">
                       <span className={`text-sm shrink-0 ${f.free ? "text-green-600" : "text-muted-foreground/40"}`}>
@@ -1027,6 +1065,100 @@ export default function App() {
                     ))}
                   </div>
 
+                  {/* Top 5 Largest Individual Expenses (FREE) */}
+                  {(() => {
+                    const top5 = [...summary.transactions]
+                      .filter((tx) => tx.type === "debit")
+                      .sort((a, b) => b.amount - a.amount)
+                      .slice(0, 5);
+                    if (top5.length === 0) return null;
+                    return (
+                      <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Top 5 Largest Expenses</p>
+                        <div className="space-y-2">
+                          {top5.map((tx, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-muted-foreground w-4 shrink-0">#{i + 1}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold truncate">{tx.description}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${tx.category.className}`}>{tx.category.name}</span>
+                                  <span className="text-[10px] text-muted-foreground">{tx.date}</span>
+                                </div>
+                              </div>
+                              <span className="text-xs font-extrabold text-red-500 shrink-0">{fmt(tx.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Average Daily Spend (FREE) */}
+                  {summary.transactions.length > 0 && (() => {
+                    const dates = summary.transactions
+                      .filter((tx) => tx.type === "debit")
+                      .map((tx) => tx.date)
+                      .filter(Boolean);
+                    const uniqueDays = new Set(dates).size || 1;
+                    const avgDaily = summary.totalExpenses / uniqueDays;
+                    const avgMonthly = summary.monthly.length > 0
+                      ? summary.totalExpenses / summary.monthly.length
+                      : summary.totalExpenses;
+                    return (
+                      <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Spending Stats</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-muted/40 rounded-xl p-3 text-center">
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Avg / Day</p>
+                            <p className="text-base font-extrabold text-foreground">{fmt(Math.round(avgDaily))}</p>
+                          </div>
+                          <div className="bg-muted/40 rounded-xl p-3 text-center">
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Avg / Month</p>
+                            <p className="text-base font-extrabold text-foreground">{fmt(Math.round(avgMonthly))}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Cash Flow Projection (PRO) */}
+                  {summary.monthly.length >= 1 && (
+                    <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Cash Flow Projection</p>
+                        {!isPro && <ProBadge onClick={() => setShowSignIn(true)} />}
+                      </div>
+                      {isPro ? (() => {
+                        const avgIncome = summary.totalIncome / Math.max(summary.monthly.length, 1);
+                        const avgExpenses = summary.totalExpenses / Math.max(summary.monthly.length, 1);
+                        const projectedNet = avgIncome - avgExpenses;
+                        const isPositive = projectedNet >= 0;
+                        return (
+                          <div className="space-y-2.5">
+                            <p className="text-[11px] text-muted-foreground">Based on {summary.monthly.length} month{summary.monthly.length !== 1 ? "s" : ""} of data</p>
+                            <div className="flex justify-between items-center py-1.5 border-b border-border">
+                              <span className="text-xs font-semibold text-muted-foreground">Projected Income</span>
+                              <span className="text-xs font-extrabold text-green-600">+{fmt(Math.round(avgIncome))}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5 border-b border-border">
+                              <span className="text-xs font-semibold text-muted-foreground">Projected Expenses</span>
+                              <span className="text-xs font-extrabold text-red-500">−{fmt(Math.round(avgExpenses))}</span>
+                            </div>
+                            <div className={`flex justify-between items-center rounded-xl px-3 py-2 ${isPositive ? "bg-green-50 border border-green-100" : "bg-red-50 border border-red-100"}`}>
+                              <span className="text-xs font-bold text-foreground">Est. Net (next month)</span>
+                              <span className={`text-sm font-extrabold ${isPositive ? "text-green-700" : "text-red-600"}`}>
+                                {isPositive ? "+" : "−"}{fmt(Math.round(Math.abs(projectedNet)))}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })() : (
+                        <p className="text-xs text-muted-foreground">Upgrade to see projected income, expenses, and net cash flow for next month.</p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Duplicates alert */}
                   {summary.duplicateRows.size > 0 && (
                     <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
@@ -1071,6 +1203,79 @@ export default function App() {
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Income Sources Breakdown (FREE) */}
+                  {(() => {
+                    const incomeSources = summary.transactions
+                      .filter((tx) => tx.type === "credit")
+                      .reduce<Record<string, { total: number; count: number; color: string; className: string }>>((acc, tx) => {
+                        const key = tx.category.name;
+                        if (!acc[key]) acc[key] = { total: 0, count: 0, color: tx.category.color, className: tx.category.className };
+                        acc[key].total += tx.amount;
+                        acc[key].count++;
+                        return acc;
+                      }, {});
+                    const entries = Object.entries(incomeSources).sort((a, b) => b[1].total - a[1].total);
+                    if (entries.length === 0) return null;
+                    return (
+                      <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Income Sources</p>
+                        <div className="space-y-2.5">
+                          {entries.map(([name, info]) => (
+                            <div key={name} className="flex items-center gap-2">
+                              <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${info.className}`}>{name}</span>
+                              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-1.5 rounded-full" style={{ width: `${(info.total / summary.totalIncome) * 100}%`, backgroundColor: info.color }} />
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-xs font-extrabold text-green-600">{fmt(info.total)}</span>
+                                <span className="text-[10px] text-muted-foreground ml-1">{info.count}×</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Tax Deduction Tracker (PRO) */}
+                  <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Tax Deductions 🧾</p>
+                      {!isPro && <ProBadge onClick={() => setShowSignIn(true)} />}
+                    </div>
+                    {isPro ? (
+                      taxRows.size > 0 ? (() => {
+                        const taxTotal = summary.transactions
+                          .filter((tx) => taxRows.has(tx.row))
+                          .reduce((s, tx) => s + tx.amount, 0);
+                        const taxTxns = summary.transactions.filter((tx) => taxRows.has(tx.row));
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between rounded-xl bg-green-50 border border-green-100 px-3 py-2.5">
+                              <span className="text-xs font-semibold text-green-800">{taxRows.size} transaction{taxRows.size !== 1 ? "s" : ""} tagged</span>
+                              <span className="text-sm font-extrabold text-green-700">{fmt(taxTotal)}</span>
+                            </div>
+                            {taxTxns.slice(0, 4).map((tx, i) => (
+                              <div key={i} className="flex items-center gap-2 py-1 border-b border-border last:border-0">
+                                <span className="text-base leading-none">🧾</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold truncate">{tx.description}</p>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${tx.category.className}`}>{tx.category.name}</span>
+                                </div>
+                                <span className="text-xs font-extrabold text-red-500 shrink-0">{fmt(tx.amount)}</span>
+                              </div>
+                            ))}
+                            {taxTxns.length > 4 && <p className="text-[11px] text-muted-foreground text-center">+{taxTxns.length - 4} more — tag in Transactions tab</p>}
+                          </div>
+                        );
+                      })() : (
+                        <p className="text-xs text-muted-foreground">No transactions tagged yet. In the Transactions tab, tap 🧾 next to any expense to mark it as tax-deductible.</p>
+                      )
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Upgrade to tag transactions as tax-deductible and get your total deductible amount instantly.</p>
+                    )}
                   </div>
 
                   {/* Recurring Subscriptions */}
@@ -1188,6 +1393,25 @@ export default function App() {
                         </button>
                       </div>
                     )}
+                    {/* Amount range filter (FREE) */}
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        placeholder="Min amount"
+                        value={txAmountMin}
+                        onChange={(e) => setTxAmountMin(e.target.value)}
+                        className="flex-1 rounded-xl border border-border bg-white px-3 py-1.5 text-xs focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/50"
+                        min={0}
+                      />
+                      <input
+                        type="number"
+                        placeholder="Max amount"
+                        value={txAmountMax}
+                        onChange={(e) => setTxAmountMax(e.target.value)}
+                        className="flex-1 rounded-xl border border-border bg-white px-3 py-1.5 text-xs focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/50"
+                        min={0}
+                      />
+                    </div>
                     {/* Duplicate filter */}
                     {summary.duplicateRows.size > 0 && (
                       <div className="flex items-center justify-between bg-white border border-border rounded-xl px-3 py-2">
@@ -1214,7 +1438,7 @@ export default function App() {
                     <div className="text-center py-8 text-muted-foreground">
                       <p className="text-2xl mb-2">🔍</p>
                       <p className="text-sm font-semibold">No transactions match</p>
-                      <button onClick={() => { setTxSearch(""); setTxCategoryFilter("All"); setTxTypeFilter("all"); setShowDuplicates(false); }}
+                      <button onClick={() => { setTxSearch(""); setTxCategoryFilter("All"); setTxTypeFilter("all"); setShowDuplicates(false); setTxAmountMin(""); setTxAmountMax(""); }}
                         className="text-xs text-primary mt-2 hover:underline">Clear filters</button>
                     </div>
                   ) : (
@@ -1248,6 +1472,9 @@ export default function App() {
                                 {isFlagged && (
                                   <span className="text-[10px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded border border-red-200">🚩 Flagged</span>
                                 )}
+                                {taxRows.has(tx.row) && isPro && (
+                                  <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">🧾 Tax</span>
+                                )}
                                 {isDupe && isPro && (
                                   <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200">⚠ Possible Duplicate</span>
                                 )}
@@ -1257,14 +1484,26 @@ export default function App() {
                               <span className={`text-sm font-extrabold ${tx.type === "credit" ? "text-green-600" : "text-red-500"}`}>
                                 {tx.type === "credit" ? "+" : "−"}{fmt(tx.amount)}
                               </span>
-                              <button
-                                data-testid={`btn-flag-${tx.row}`}
-                                onClick={toggleFlag}
-                                title={isFlagged ? "Remove flag" : "Flag for review"}
-                                className={`text-base leading-none transition-all hover:scale-110 active:scale-95 ${isFlagged ? "opacity-100" : "opacity-25 hover:opacity-60"}`}
-                              >
-                                🚩
-                              </button>
+                              <div className="flex items-center gap-1">
+                                {isPro && tx.type === "debit" && (
+                                  <button
+                                    data-testid={`btn-tax-${tx.row}`}
+                                    onClick={() => handleToggleTax(tx.row)}
+                                    title={taxRows.has(tx.row) ? "Remove tax tag" : "Mark as tax deductible"}
+                                    className={`text-base leading-none transition-all hover:scale-110 active:scale-95 ${taxRows.has(tx.row) ? "opacity-100" : "opacity-20 hover:opacity-60"}`}
+                                  >
+                                    🧾
+                                  </button>
+                                )}
+                                <button
+                                  data-testid={`btn-flag-${tx.row}`}
+                                  onClick={toggleFlag}
+                                  title={isFlagged ? "Remove flag" : "Flag for review"}
+                                  className={`text-base leading-none transition-all hover:scale-110 active:scale-95 ${isFlagged ? "opacity-100" : "opacity-25 hover:opacity-60"}`}
+                                >
+                                  🚩
+                                </button>
+                              </div>
                             </div>
                           </div>
                           {/* Category picker */}

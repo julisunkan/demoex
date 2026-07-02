@@ -10,8 +10,8 @@ const router = Router();
 
 const DEFAULT_SETTINGS = {
   appearance: {
-    name:         "Bank Statement Analyzer",
-    tagline:      "Analyze transactions, categorize spending, and export summary reports.",
+    name:         "Financial Data Analyzer",
+    tagline:      "Analyze transactions, track budgets, and export financial reports.",
     primaryColor: "#3b82f6",
     accentColor:  "#16a34a",
     radius:       "6px",

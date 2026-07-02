@@ -122,7 +122,7 @@ export default function SubscriptionDashboard({ onStatusChange, onSignIn }: Prop
 
         <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3 text-left">
           <p className="text-xs font-medium text-amber-800">
-            Your Microsoft account doesn't have an active Bank Statement Analyzer subscription.
+            Your Microsoft account doesn't have an active Financial Data Analyzer subscription.
             Subscribe on AppSource to unlock all Pro features.
           </p>
         </div>

@@ -87,7 +87,7 @@ function LoginScreen({ onLogin }: { onLogin: (pw: string) => void }) {
             <ShieldCheck className="w-5 h-5 text-blue-600" />
           </div>
           <CardTitle className="text-lg">Admin Login</CardTitle>
-          <p className="text-sm text-muted-foreground">Bank Statement Analyzer</p>
+          <p className="text-sm text-muted-foreground">Financial Data Analyzer</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -874,7 +874,7 @@ function AppearanceTab({ pw, settings, onSaved }: { pw: string; settings: Settin
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="text-sm font-medium mb-1.5 block">Add-in Name</label>
-            <Input value={form.name} onChange={e => update({ name: e.target.value })} placeholder="Bank Statement Analyzer" />
+            <Input value={form.name} onChange={e => update({ name: e.target.value })} placeholder="Financial Data Analyzer" />
           </div>
           <div>
             <label className="text-sm font-medium mb-1.5 block">Tagline</label>
@@ -1205,7 +1205,7 @@ function SetupTab() {
                 </thead>
                 <tbody className="divide-y">
                   {[
-                    { field: "Offer name",        req: "Required",  val: "Bank Statement Analyzer for Excel" },
+                    { field: "Offer name",        req: "Required",  val: "Financial Data Analyzer for Excel" },
                     { field: "Summary",           req: "Required · ≤100 chars", val: "Analyze, categorize & export bank transactions directly in Excel." },
                     { field: "Description",       req: "Required · ≤3 000 chars", val: "Full feature breakdown + screenshots. Include what Pro unlocks." },
                     { field: "Search keywords",   req: "Up to 3",   val: "bank statement, Excel add-in, transaction analyzer" },
@@ -2488,7 +2488,7 @@ export default function AdminPage() {
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-primary" />
           <span className="font-semibold text-sm">Admin Panel</span>
-          <span className="text-muted-foreground text-xs hidden sm:inline">· Bank Statement Analyzer</span>
+          <span className="text-muted-foreground text-xs hidden sm:inline">· Financial Data Analyzer</span>
         </div>
         <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5">
           <LogOut className="w-4 h-4" /> Logout
