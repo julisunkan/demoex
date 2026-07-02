@@ -7,7 +7,8 @@ import {
   KeyRound, LogOut, RefreshCw, ShieldCheck, Copy, Check,
   CreditCard, Palette, Database, Download, Upload, Save, Eye, EyeOff,
   Rocket, ExternalLink, AlertCircle, CheckCircle2, Terminal, Bell, TrendingUp,
-  Users, DollarSign, Activity, BarChart3, TicketCheck
+  Users, DollarSign, Activity, BarChart3, TicketCheck, LayoutDashboard,
+  Clock, XCircle, ArrowRight
 } from "lucide-react";
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
@@ -1156,6 +1157,261 @@ function NotificationsTab({ pw, settings, onSaved }: { pw: string; settings: Set
   );
 }
 
+// ── Overview tab ──────────────────────────────────────────────────────────────
+function OverviewTab({ pw, onNavigate }: { pw: string; onNavigate: (tab: Tab) => void }) {
+  const [rev, setRev] = useState<RevenueData | null>(null);
+  const [licenses, setLicenses] = useState<{ total: number; licenses: License[] } | null>(null);
+  const [tickets, setTickets] = useState<{ total: number; tickets: { status: string; createdAt: string; subject: string; name: string }[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  async function load() {
+    setLoading(true);
+    const [rRes, lRes, tRes] = await Promise.all([
+      fetch(`${API_BASE}/api/admin/revenue`,  { headers: { "x-admin-password": pw } }),
+      fetch(`${API_BASE}/api/admin/licenses`, { headers: { "x-admin-password": pw } }),
+      fetch(`${API_BASE}/api/tickets`,        { headers: { "x-admin-password": pw } }),
+    ]);
+    if (rRes.ok) setRev(await rRes.json());
+    if (lRes.ok) setLicenses(await lRes.json());
+    if (tRes.ok) setTickets(await tRes.json());
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  function fmt(n: number) { return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+  function fmtMonth(s: string) {
+    const [y, m] = s.split("-");
+    return new Date(Number(y), Number(m) - 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  }
+
+  const now = Date.now();
+  const licenseList = licenses?.licenses ?? [];
+  const active       = licenseList.filter(l => !l.expiresAt || new Date(l.expiresAt).getTime() > now);
+  const expired      = licenseList.filter(l => l.expiresAt && new Date(l.expiresAt).getTime() <= now);
+  const expiringSoon = licenseList.filter(l => {
+    if (!l.expiresAt) return false;
+    const ms = new Date(l.expiresAt).getTime() - now;
+    return ms > 0 && ms < 7 * 24 * 60 * 60 * 1000;
+  });
+  const openTickets  = (tickets?.tickets ?? []).filter(t => t.status === "open");
+  const recentLicenses = [...licenseList].sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime()).slice(0, 5);
+  const last6 = (rev?.monthly ?? []).slice(-6);
+  const maxRev = Math.max(...last6.map(m => m.revenue), 1);
+
+  if (loading) return <div className="text-center py-20 text-muted-foreground text-sm">Loading overview…</div>;
+
+  return (
+    <div className="space-y-6" data-testid="section-overview">
+      {/* KPI row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card data-testid="card-overview-revenue">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Revenue</span>
+              <DollarSign className="w-4 h-4 text-emerald-500" />
+            </div>
+            <p className="text-2xl font-bold text-emerald-600" data-testid="text-overview-revenue">{fmt(rev?.totalRevenue ?? 0)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{rev?.paidLicenses ?? 0} paid license{rev?.paidLicenses !== 1 ? "s" : ""}</p>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-overview-mrr">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Est. MRR</span>
+              <TrendingUp className="w-4 h-4 text-blue-500" />
+            </div>
+            <p className="text-2xl font-bold text-blue-600" data-testid="text-overview-mrr">{fmt(rev?.mrr ?? 0)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">active subscriptions</p>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-overview-active">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active Licenses</span>
+              <Users className="w-4 h-4 text-violet-500" />
+            </div>
+            <p className="text-2xl font-bold text-violet-600" data-testid="text-overview-active">{active.length}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">of {licenseList.length} total issued</p>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-overview-tickets">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Open Tickets</span>
+              <TicketCheck className="w-4 h-4 text-amber-500" />
+            </div>
+            <p className={`text-2xl font-bold ${openTickets.length > 0 ? "text-amber-600" : "text-gray-400"}`} data-testid="text-overview-tickets">
+              {openTickets.length}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">{tickets?.total ?? 0} total tickets</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Middle row: license status + mini revenue chart */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* License status breakdown */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-muted-foreground" /> License Status
+              </CardTitle>
+              <button onClick={() => onNavigate("licenses")} className="text-xs text-primary hover:underline flex items-center gap-1">
+                Manage <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {[
+              { label: "Active",        value: active.length,       icon: <CheckCircle2 className="w-4 h-4 text-green-500" />,  bar: "bg-green-500",  pct: licenseList.length ? active.length / licenseList.length : 0 },
+              { label: "Expiring soon", value: expiringSoon.length, icon: <Clock className="w-4 h-4 text-amber-500" />,         bar: "bg-amber-400",  pct: licenseList.length ? expiringSoon.length / licenseList.length : 0 },
+              { label: "Expired",       value: expired.length,      icon: <XCircle className="w-4 h-4 text-red-400" />,         bar: "bg-red-400",    pct: licenseList.length ? expired.length / licenseList.length : 0 },
+            ].map(s => (
+              <div key={s.label} className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">{s.icon}<span className="font-medium">{s.label}</span></div>
+                  <span className="font-bold tabular-nums">{s.value}</span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${s.bar}`} style={{ width: `${s.pct * 100}%` }} />
+                </div>
+              </div>
+            ))}
+            {licenseList.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-2">No licenses issued yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Mini revenue sparkline */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-muted-foreground" /> Revenue (last 6 months)
+              </CardTitle>
+              <button onClick={() => onNavigate("revenue")} className="text-xs text-primary hover:underline flex items-center gap-1">
+                Full report <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {last6.every(m => m.revenue === 0) ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No revenue recorded yet.</div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-end gap-1.5 h-28" data-testid="chart-overview-revenue">
+                  {last6.map(m => (
+                    <div key={m.month} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+                      <span className="text-[9px] font-medium text-emerald-700">{m.revenue > 0 ? fmt(m.revenue) : ""}</span>
+                      <div
+                        className="w-full bg-emerald-500 rounded-t hover:bg-emerald-600 transition-colors"
+                        style={{ height: `${Math.max(4, (m.revenue / maxRev) * 80)}px` }}
+                        title={`${fmtMonth(m.month)}: ${fmt(m.revenue)}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  {last6.map(m => (
+                    <div key={m.month} className="flex-1 text-center">
+                      <span className="text-[9px] text-muted-foreground">{fmtMonth(m.month)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Plan breakdown */}
+      {rev && rev.byPlan.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="w-4 h-4 text-muted-foreground" /> Subscriptions by Plan
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {rev.byPlan.map(p => {
+                const label = PLAN_LABELS[p.planId] ?? p.planId;
+                const color = PLAN_COLORS[p.planId] ?? "bg-gray-400";
+                return (
+                  <div key={p.planId} className="rounded-xl border bg-muted/30 px-4 py-3 text-center" data-testid={`card-plan-${p.planId}`}>
+                    <div className={`w-2 h-2 rounded-full ${color} mx-auto mb-2`} />
+                    <p className="text-xl font-bold">{p.count}</p>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="text-xs font-semibold text-emerald-600 mt-0.5">{fmt(p.revenue)}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent licenses */}
+      {recentLicenses.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground" /> Recent Licenses
+              </CardTitle>
+              <button onClick={() => onNavigate("licenses")} className="text-xs text-primary hover:underline flex items-center gap-1">
+                View all <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {recentLicenses.map((l, i) => {
+                const exp = l.expiresAt ? new Date(l.expiresAt).getTime() : null;
+                const isExpired = exp !== null && exp < now;
+                const isSoon    = exp !== null && !isExpired && exp - now < 7 * 24 * 60 * 60 * 1000;
+                return (
+                  <div key={l.licenseKey} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors" data-testid={`row-recent-license-${i}`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded shrink-0">{l.licenseKey.slice(0, 16)}…</code>
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground truncate">{l.email ?? (l.txHash === "MANUAL" ? "Manual" : l.txHash?.slice(0, 12) + "…")}</p>
+                        {l.planId && <p className="text-[10px] text-muted-foreground/60">{PLAN_LABELS[l.planId] ?? l.planId}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isExpired ? (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700">Expired</span>
+                      ) : isSoon ? (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Expiring</span>
+                      ) : (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700">Active</span>
+                      )}
+                      <span className="text-[10px] text-muted-foreground">{fmtDate(l.issuedAt)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={load} className="gap-1.5" data-testid="button-refresh-overview">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ── Revenue tab ────────────────────────────────────────────────────────────────
 interface RevenueData {
   totalRevenue: number;
@@ -1392,7 +1648,7 @@ function RevenueTab({ pw }: { pw: string }) {
 }
 
 // ── Main admin page ───────────────────────────────────────────────────────────
-type Tab = "licenses" | "revenue" | "payment" | "appearance" | "notifications" | "backup" | "setup" | "tickets";
+type Tab = "overview" | "licenses" | "revenue" | "payment" | "appearance" | "notifications" | "backup" | "setup" | "tickets";
 
 // ── Tickets tab ────────────────────────────────────────────────────────────────
 interface Ticket {
@@ -1595,7 +1851,8 @@ function TicketsTab({ pw }: { pw: string }) {
 }
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "licenses",      label: "Licenses",      icon: <KeyRound className="w-4 h-4" /> },
+  { id: "overview",      label: "Overview",       icon: <LayoutDashboard className="w-4 h-4" /> },
+  { id: "licenses",      label: "Licenses",       icon: <KeyRound className="w-4 h-4" /> },
   { id: "revenue",       label: "Revenue",        icon: <TrendingUp className="w-4 h-4" /> },
   { id: "tickets",       label: "Tickets",        icon: <TicketCheck className="w-4 h-4" /> },
   { id: "payment",       label: "Payment",        icon: <CreditCard className="w-4 h-4" /> },
@@ -1608,7 +1865,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function AdminPage() {
   const [pw, setPw] = useState(() => sessionStorage.getItem("admin_pw") ?? "");
   const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState<Tab>("licenses");
+  const [tab, setTab] = useState<Tab>("overview");
   const [settings, setSettings] = useState<Settings | null>(null);
 
   async function loadSettings(password: string) {
@@ -1666,6 +1923,7 @@ export default function AdminPage() {
         </div>
 
         {/* Tab content */}
+        {tab === "overview"      && <OverviewTab pw={pw} onNavigate={setTab} />}
         {tab === "licenses"      && <LicensesTab pw={pw} />}
         {tab === "revenue"       && <RevenueTab pw={pw} />}
         {tab === "tickets"       && <TicketsTab pw={pw} />}
