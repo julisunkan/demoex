@@ -191,6 +191,29 @@ router.get("/licenses/lookup", requireAdmin, (req, res) => {
   res.json({ email: raw, count: matches.length, licenses: matches });
 });
 
+// PATCH /api/admin/licenses/:key/extend  — extend a license's expiry
+router.patch("/licenses/:key/extend", requireAdmin, (req, res) => {
+  const { key } = req.params;
+  const days = parseInt(req.body?.days ?? "0");
+  if (!days || days <= 0 || days > 3650) {
+    return res.status(400).json({ error: "days must be 1–3650" });
+  }
+  const licenses = loadLicenses();
+  const idx = licenses.findIndex((l) => l.licenseKey === key);
+  if (idx < 0) return res.status(404).json({ error: "License not found" });
+
+  const lic = licenses[idx];
+  // Extend from current expiry if still in the future, otherwise from today
+  const base = lic.expiresAt && new Date(lic.expiresAt).getTime() > Date.now()
+    ? new Date(lic.expiresAt)
+    : new Date();
+  base.setDate(base.getDate() + days);
+  licenses[idx] = { ...lic, expiresAt: base.toISOString() };
+  saveLicenses(licenses);
+  console.log(`📅 License extended: ${key} → ${base.toISOString()} (+${days}d)`);
+  res.json({ ok: true, licenseKey: key, expiresAt: base.toISOString() });
+});
+
 // DELETE /api/admin/licenses/:key  — revoke a license key
 router.delete("/licenses/:key", requireAdmin, (req, res) => {
   const { key } = req.params;

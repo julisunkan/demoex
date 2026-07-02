@@ -130,6 +130,10 @@ function LicensesTab({ pw }: { pw: string }) {
   const [lookupResults, setLookupResults] = useState<License[] | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupDone, setLookupDone] = useState(false);
+  // Extend expiry state (keyed by licenseKey)
+  const [extendDays, setExtendDays] = useState<Record<string, string>>({});
+  const [extendingKey, setExtendingKey] = useState<string | null>(null);
+  const [extendedResult, setExtendedResult] = useState<Record<string, string>>({}); // key → new expiresAt
 
   async function lookupByEmail() {
     const email = lookupEmail.trim();
@@ -149,6 +153,32 @@ function LicensesTab({ pw }: { pw: string }) {
     } finally {
       setLookupLoading(false);
       setLookupDone(true);
+    }
+  }
+
+  async function extendLicense(licenseKey: string) {
+    const days = extendDays[licenseKey] ?? "30";
+    setExtendingKey(licenseKey);
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/admin/licenses/${encodeURIComponent(licenseKey)}/extend`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "x-admin-password": pw },
+          body: JSON.stringify({ days: parseInt(days) }),
+        }
+      );
+      if (res.ok) {
+        const { expiresAt } = await res.json();
+        setExtendedResult(prev => ({ ...prev, [licenseKey]: expiresAt }));
+        // Also update the in-place lookup result so expiry date refreshes
+        setLookupResults(prev =>
+          prev ? prev.map(l => l.licenseKey === licenseKey ? { ...l, expiresAt } : l) : prev
+        );
+        load(); // refresh the main license table too
+      }
+    } finally {
+      setExtendingKey(null);
     }
   }
 
@@ -309,10 +339,14 @@ function LicensesTab({ pw }: { pw: string }) {
                   {lookupResults.length} license{lookupResults.length > 1 ? "s" : ""} found for {lookupEmail.trim()}
                 </p>
                 {lookupResults.map((l, i) => {
-                  const now = Date.now();
-                  const expired = l.expiresAt ? new Date(l.expiresAt).getTime() < now : false;
+                  const nowMs = Date.now();
+                  const expired = l.expiresAt ? new Date(l.expiresAt).getTime() < nowMs : false;
+                  const justExtended = extendedResult[l.licenseKey];
+                  const isExtending = extendingKey === l.licenseKey;
+                  const selectedDays = extendDays[l.licenseKey] ?? "30";
                   return (
-                    <div key={l.licenseKey} className={`rounded-lg border bg-white px-3 py-3 space-y-2 ${expired ? "border-red-200 opacity-70" : "border-amber-200"}`} data-testid={`card-lookup-result-${i}`}>
+                    <div key={l.licenseKey} className={`rounded-lg border bg-white px-3 py-3 space-y-2.5 ${expired && !justExtended ? "border-red-200" : "border-amber-200"}`} data-testid={`card-lookup-result-${i}`}>
+                      {/* Header row: badges + issued date */}
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-1.5">
                           {l.planId && (
@@ -320,7 +354,9 @@ function LicensesTab({ pw }: { pw: string }) {
                               {l.planId}
                             </Badge>
                           )}
-                          {expired ? (
+                          {justExtended ? (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-green-100 text-green-700 border-0">✓ Extended</Badge>
+                          ) : expired ? (
                             <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-red-100 text-red-700 border-0">Expired</Badge>
                           ) : (
                             <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-green-100 text-green-700 border-0">Active</Badge>
@@ -328,17 +364,60 @@ function LicensesTab({ pw }: { pw: string }) {
                         </div>
                         <span className="text-[10px] text-muted-foreground">Issued {fmtDate(l.issuedAt)}</span>
                       </div>
+
+                      {/* License key + copy */}
                       <div className="flex items-center gap-2 bg-gray-50 rounded-lg border border-gray-200 px-3 py-2">
                         <code className="flex-1 font-mono text-sm font-bold text-gray-900 tracking-wider select-all break-all" data-testid={`text-lookup-key-${i}`}>
                           {l.licenseKey}
                         </code>
                         <CopyBtn text={l.licenseKey} />
                       </div>
-                      {l.expiresAt && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {expired ? "Expired" : "Valid until"}: <span className="font-medium">{fmtDate(l.expiresAt)}</span>
-                        </p>
-                      )}
+
+                      {/* Expiry row */}
+                      <p className="text-[11px] text-muted-foreground">
+                        {!l.expiresAt ? (
+                          <span>No expiry</span>
+                        ) : expired && !justExtended ? (
+                          <span className="text-red-600 font-medium">Expired {fmtDate(l.expiresAt)}</span>
+                        ) : (
+                          <>Valid until: <span className="font-medium">{fmtDate(justExtended ?? l.expiresAt ?? "")}</span></>
+                        )}
+                      </p>
+
+                      {/* ── Extend expiry controls ── */}
+                      <div className="flex items-center gap-2 pt-0.5 border-t border-dashed border-amber-200">
+                        <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        <span className="text-[11px] text-amber-700 font-medium shrink-0">Extend by</span>
+                        <select
+                          value={selectedDays}
+                          onChange={e => setExtendDays(prev => ({ ...prev, [l.licenseKey]: e.target.value }))}
+                          className="rounded border border-amber-200 bg-white px-1.5 py-0.5 text-xs text-amber-900 focus:outline-none focus:ring-1 focus:ring-amber-300"
+                          data-testid={`select-extend-days-${i}`}
+                        >
+                          <option value="7">7 days</option>
+                          <option value="30">30 days</option>
+                          <option value="90">90 days</option>
+                          <option value="180">180 days</option>
+                          <option value="365">1 year</option>
+                        </select>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => extendLicense(l.licenseKey)}
+                          disabled={isExtending}
+                          className="h-6 px-2.5 text-[11px] border-amber-300 text-amber-700 hover:bg-amber-50 gap-1 shrink-0"
+                          data-testid={`button-extend-license-${i}`}
+                        >
+                          {isExtending
+                            ? <><RefreshCw className="w-3 h-3 animate-spin" /> Extending…</>
+                            : <><ArrowRight className="w-3 h-3" /> Extend</>}
+                        </Button>
+                        {justExtended && (
+                          <span className="text-[10px] text-green-600 font-semibold flex items-center gap-0.5" data-testid={`text-extend-success-${i}`}>
+                            <CheckCircle2 className="w-3 h-3" /> Done
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
