@@ -15,13 +15,63 @@
 
 import { Router } from "express";
 import { readFileSync, writeFileSync, renameSync, existsSync } from "fs";
-import { randomUUID } from "crypto";
+import { randomUUID, randomBytes } from "crypto";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { getSaasApiToken, getGraphUser, configured } from "../lib/msalClient.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const SUBS_FILE = join(__dirname, "../data/subscriptions.json");
+const __dirname   = dirname(fileURLToPath(import.meta.url));
+const SUBS_FILE   = join(__dirname, "../data/subscriptions.json");
+const LIC_FILE    = join(__dirname, "../data/licenses.json");
+const SETTINGS_FILE = join(__dirname, "../data/settings.json");
+
+// ── License helpers ────────────────────────────────────────────────────────────
+function loadLicenses() {
+  try { return JSON.parse(readFileSync(LIC_FILE, "utf8")); } catch { return []; }
+}
+function saveLicenses(licenses) {
+  const tmp = `${LIC_FILE}.tmp-${Date.now()}`;
+  writeFileSync(tmp, JSON.stringify(licenses, null, 2));
+  renameSync(tmp, LIC_FILE);
+}
+function generateLicenseKey() {
+  return "BSA-" + randomBytes(12).toString("hex").toUpperCase();
+}
+function planDaysFromId(planId) {
+  const defaults = { monthly: 30, quarterly: 90, biannual: 180, annual: 365 };
+  try {
+    const s = JSON.parse(readFileSync(SETTINGS_FILE, "utf8"));
+    const p = (s.plans ?? []).find((x) => x.id === planId);
+    if (p?.days) return p.days;
+  } catch {}
+  return defaults[planId] ?? 365;
+}
+function issueMarketplaceLicense({ subscriptionId, planId, email }) {
+  const days       = planDaysFromId(planId);
+  const expiresAt  = (() => { const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString(); })();
+  const licenseKey = generateLicenseKey();
+  const licenses   = loadLicenses();
+
+  // Deduplicate: one active license per subscriptionId
+  const existing = licenses.findIndex((l) => l.txHash === subscriptionId);
+  const entry = {
+    licenseKey,
+    txHash:    subscriptionId,
+    planId,
+    note:      `AppSource subscription — ${planId}`,
+    issuedAt:  new Date().toISOString(),
+    expiresAt,
+    ...(email ? { email } : {}),
+  };
+  if (existing >= 0) {
+    entry.licenseKey = licenses[existing].licenseKey; // reuse existing key on re-activation
+    licenses[existing] = { ...licenses[existing], ...entry };
+  } else {
+    licenses.push(entry);
+  }
+  saveLicenses(licenses);
+  return { licenseKey: entry.licenseKey, expiresAt };
+}
 
 const router = Router();
 
@@ -214,15 +264,23 @@ router.post("/activate", requireMsAuth, async (req, res) => {
       quantity:    resolved.quantity ?? 1,
       status:      "Subscribed",
       offerId:     resolved.offerId,
-      beneficiary: resolved.beneficiary ?? null,  // from Microsoft resolve response
-      purchaser:   resolved.purchaser   ?? null,  // from Microsoft resolve response
-      msGraphUserId: req.msUser.id,               // Graph-validated activating user OID
+      beneficiary: resolved.beneficiary ?? null,
+      purchaser:   resolved.purchaser   ?? null,
+      msGraphUserId: req.msUser.id,
       activatedAt: new Date().toISOString(),
     });
 
-    pendingResolutions.delete(subscriptionId); // clean up
-    console.log(`✅ Subscription activated: ${subscriptionId} (plan: ${resolved.planId})`);
-    res.json({ ok: true, subscriptionId });
+    // Auto-issue a license key tied to this subscription
+    const email = req.msUser.mail ?? req.msUser.userPrincipalName ?? null;
+    const { licenseKey, expiresAt } = issueMarketplaceLicense({
+      subscriptionId,
+      planId: resolved.planId,
+      email,
+    });
+
+    pendingResolutions.delete(subscriptionId);
+    console.log(`✅ Subscription activated: ${subscriptionId} (plan: ${resolved.planId}) → license: ${licenseKey}`);
+    res.json({ ok: true, subscriptionId, licenseKey, expiresAt, planId: resolved.planId });
   } catch (err) {
     console.error("[saas] activate error:", err.message);
     res.status(500).json({ error: "Activation failed — please try again" });
