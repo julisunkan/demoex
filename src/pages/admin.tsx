@@ -707,20 +707,16 @@ function LicensesTab({ pw }: { pw: string }) {
 
 // ── Payment tab ───────────────────────────────────────────────────────────────
 const DEFAULT_PLANS: Plan[] = [
-  { id: "monthly",   label: "Monthly",  price: 5,  days: 30  },
-  { id: "quarterly", label: "3-Month",  price: 12, days: 90  },
-  { id: "biannual",  label: "6-Month",  price: 20, days: 180 },
-  { id: "annual",    label: "1-Year",   price: 35, days: 365 },
+  { id: "monthly", label: "Monthly", price: 19,  days: 30  },
+  { id: "annual",  label: "1-Year",  price: 199, days: 365 },
 ];
 
 function PaymentTab({ pw, settings, onSaved }: { pw: string; settings: Settings; onSaved: (s: Settings) => void }) {
-  const [form, setForm] = useState(settings.payment);
   const [plans, setPlans] = useState<Plan[]>(settings.plans?.length ? settings.plans : DEFAULT_PLANS);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setForm(settings.payment);
     setPlans(settings.plans?.length ? settings.plans : DEFAULT_PLANS);
   }, [settings]);
 
@@ -732,7 +728,7 @@ function PaymentTab({ pw, settings, onSaved }: { pw: string; settings: Settings;
     setSaving(true);
     const res = await fetch(`${API_BASE}/api/admin/settings`, {
       method: "PUT", headers: { "Content-Type": "application/json", "x-admin-password": pw },
-      body: JSON.stringify({ payment: form, plans }),
+      body: JSON.stringify({ plans }),
     });
     setSaving(false);
     if (res.ok) {
@@ -745,34 +741,6 @@ function PaymentTab({ pw, settings, onSaved }: { pw: string; settings: Settings;
 
   return (
     <div className="space-y-4">
-      {/* Wallet & network */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Wallet & Network</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">USDT Wallet Address</label>
-            <Input value={form.walletAddress} onChange={e => setForm(f => ({ ...f, walletAddress: e.target.value }))}
-              placeholder="Your USDT wallet address" className="font-mono text-sm" />
-            <p className="text-xs text-muted-foreground mt-1">Customers will send USDT to this address.</p>
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Network</label>
-            <select value={form.network} onChange={e => setForm(f => ({ ...f, network: e.target.value }))}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="tron">Tron (TRC-20) — Recommended, ~$0 fees</option>
-              <option value="bsc">BNB Smart Chain (BEP-20) — Low fees</option>
-              <option value="eth">Ethereum (ERC-20) — Higher fees</option>
-            </select>
-          </div>
-          <div className="pt-2 border-t">
-            <p className="text-xs font-medium text-muted-foreground mb-2">API Keys (optional — for higher rate limits)</p>
-            <div className="space-y-2 text-xs text-muted-foreground bg-muted rounded-md p-3">
-              <p>Add <code className="bg-background rounded px-1">TRONGRID_API_KEY</code>, <code className="bg-background rounded px-1">BSCSCAN_API_KEY</code>, or <code className="bg-background rounded px-1">ETHERSCAN_API_KEY</code> as Replit Secrets for higher blockchain API rate limits.</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Subscription plans */}
       <Card>
         <CardHeader>
@@ -797,12 +765,12 @@ function PaymentTab({ pw, settings, onSaved }: { pw: string; settings: Settings;
                     onChange={e => updatePlanPrice(plan.id, Number(e.target.value))}
                     className="w-20 text-right font-mono font-semibold"
                   />
-                  <span className="text-xs text-muted-foreground">USDT</span>
+                  <span className="text-xs text-muted-foreground">USD</span>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">Tip: Use tiered pricing (e.g. $5 → $12 → $20 → $35) to encourage longer commitments.</p>
+          <p className="text-xs text-muted-foreground">Tip: Offering a discounted annual plan encourages longer commitments and reduces churn.</p>
         </CardContent>
       </Card>
 
@@ -1115,12 +1083,6 @@ function SetupTab() {
         </CardHeader>
         <CardContent className="p-0 px-4 pb-2">
           <EnvRow name="ADMIN_PASSWORD" required desc="Password to access this admin panel. Choose something strong." />
-          <EnvRow name="USDT_WALLET_ADDRESS" required desc="Your USDT wallet address where customers send payments." />
-          <EnvRow name="USDT_NETWORK" desc='Blockchain network: "tron" (default), "bsc", or "eth".' />
-          <EnvRow name="USDT_PRICE" desc='Pro license price in USDT. Default: "5".' />
-          <EnvRow name="TRONGRID_API_KEY" desc="TronGrid API key — raises rate limits for Tron payment verification." />
-          <EnvRow name="BSCSCAN_API_KEY" desc="BscScan API key — raises rate limits for BSC payment verification." />
-          <EnvRow name="ETHERSCAN_API_KEY" desc="Etherscan API key — raises rate limits for ETH payment verification." />
         </CardContent>
       </Card>
 

@@ -38,7 +38,7 @@ function generateLicenseKey() {
   return "FDA-" + randomBytes(12).toString("hex").toUpperCase();
 }
 function planDaysFromId(planId) {
-  const defaults = { monthly: 30, quarterly: 90, biannual: 180, annual: 365 };
+  const defaults = { monthly: 30, annual: 365 };
   try {
     const s = JSON.parse(readFileSync(SETTINGS_FILE, "utf8"));
     const p = (s.plans ?? []).find((x) => x.id === planId);

@@ -28,7 +28,6 @@ export default function PrivacyPage() {
             <li><strong>Email address</strong> — optionally provided during payment to receive your license key and renewal reminders.</li>
             <li><strong>License key</strong> — generated when you complete a payment, stored to validate your subscription.</li>
             <li><strong>Support ticket data</strong> — your name, email, and message content when you submit a support request.</li>
-            <li><strong>Blockchain transaction hash</strong> — submitted by you to verify your payment on-chain.</li>
           </ul>
           <p className="mt-2"><strong>Information we do NOT collect:</strong></p>
           <ul className="list-disc pl-5 space-y-1">
@@ -65,7 +64,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-1">
             <li>As required by applicable law or legal process;</li>
             <li>To protect the rights, property, or safety of Financial Data Analyzer or our users;</li>
-            <li>With blockchain networks (Tron, BSC, Ethereum) solely to verify payment transactions — only the transaction hash you provide is used.</li>
+            <li>With Microsoft solely to verify your AppSource subscription status — only your Microsoft account identity token is used.</li>
           </ul>
         </section>
 

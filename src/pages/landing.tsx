@@ -19,7 +19,7 @@ import type { AccountInfo } from "@azure/msal-browser";
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 const PLAN_LABELS: Record<string, string> = {
-  monthly: "Monthly", quarterly: "3-Month", biannual: "6-Month", annual: "Annual",
+  monthly: "Monthly", annual: "Annual",
 };
 
 type LandingStep =

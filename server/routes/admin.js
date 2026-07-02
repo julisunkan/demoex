@@ -108,8 +108,8 @@ router.get("/revenue", requireAdmin, (req, res) => {
     plans = Array.isArray(s.plans) ? s.plans : [];
   } catch {}
 
-  const DEFAULT_PRICES = { monthly: 5, quarterly: 12, biannual: 20, annual: 35 };
-  const DEFAULT_DAYS   = { monthly: 30, quarterly: 90, biannual: 180, annual: 365 };
+  const DEFAULT_PRICES = { monthly: 19, annual: 199 };
+  const DEFAULT_DAYS   = { monthly: 30, annual: 365 };
 
   function planPrice(planId) {
     const p = plans.find(x => x.id === planId);
