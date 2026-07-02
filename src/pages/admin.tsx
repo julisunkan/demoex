@@ -956,6 +956,148 @@ function SetupTab() {
         </CardContent>
       </Card>
 
+      {/* AppSource listing guide */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ExternalLink className="w-4 h-4 text-primary" /> Microsoft AppSource Listing Guide
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            How to publish your add-in as a paid SaaS offer on Microsoft AppSource via Partner Center.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+
+          {/* Phase 1 — Prerequisites */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 1</span>
+              <p className="text-sm font-semibold">Prerequisites</p>
+            </div>
+            <div className="space-y-2 pl-1">
+              <Step>Enroll in the <strong>Commercial Marketplace</strong> program at <a href="https://partner.microsoft.com" target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2 inline-flex items-center gap-0.5">partner.microsoft.com <ExternalLink className="w-3 h-3" /></a> → Account settings → Programs.</Step>
+              <Step>Register an <strong>Azure AD app</strong> in the Azure Portal for SaaS fulfillment authentication — you'll need the <code className="bg-muted px-1 rounded text-xs">Application (client) ID</code> and a <code className="bg-muted px-1 rounded text-xs">client secret</code>.</Step>
+              <Step>Have your deployed backend URL ready — Partner Center will call it to activate subscriptions.</Step>
+              <Step>Prepare <strong>offer logos</strong> in PNG format: 216×216 px (small), 1280×720 px (wide banner). No text in logos — Microsoft may reject them.</Step>
+            </div>
+          </div>
+
+          {/* Phase 2 — Create the SaaS Offer */}
+          <div className="space-y-2 border-t pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 2</span>
+              <p className="text-sm font-semibold">Create the SaaS Offer</p>
+            </div>
+            <div className="space-y-2 pl-1">
+              <Step>In Partner Center go to <strong>Marketplace offers → + New offer → Software as a Service (SaaS)</strong>.</Step>
+              <Step>Enter an <strong>Offer ID</strong> (lowercase, hyphens only, permanent — e.g. <code className="bg-muted px-1 rounded text-xs">bank-statement-analyzer</code>) and an <strong>Offer alias</strong> (internal name).</Step>
+              <Step>On the <strong>Setup</strong> page, set <em>Customer gets software through Microsoft</em> to <strong>Yes</strong> so billing flows through the marketplace.</Step>
+              <Step>Enter your <strong>Landing page URL</strong> — this is the page customers land on after purchasing. It receives a <code className="bg-muted px-1 rounded text-xs">token</code> query param that you resolve via the SaaS Fulfillment API.</Step>
+            </div>
+          </div>
+
+          {/* Phase 3 — Listing fields */}
+          <div className="space-y-2 border-t pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 3</span>
+              <p className="text-sm font-semibold">Listing &amp; Storefront Details</p>
+            </div>
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/60 border-b">
+                    <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Field</th>
+                    <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Requirement</th>
+                    <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Suggested value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {[
+                    { field: "Offer name",        req: "Required",  val: "Bank Statement Analyzer for Excel" },
+                    { field: "Summary",           req: "Required · ≤100 chars", val: "Analyze, categorize & export bank transactions directly in Excel." },
+                    { field: "Description",       req: "Required · ≤3 000 chars", val: "Full feature breakdown + screenshots. Include what Pro unlocks." },
+                    { field: "Search keywords",   req: "Up to 3",   val: "bank statement, Excel add-in, transaction analyzer" },
+                    { field: "Privacy policy URL",req: "Required",  val: "Your /privacy page URL" },
+                    { field: "Support URL",       req: "Required",  val: "Your /support page URL" },
+                    { field: "Category",          req: "1–2",       val: "Productivity › Office tools" },
+                    { field: "Industries",        req: "Optional",  val: "Financial services, Banking" },
+                    { field: "Logo (216×216)",    req: "Required",  val: "PNG, no text, matches add-in icon" },
+                    { field: "Screenshots",       req: "1–5 images", val: "1280×720 px showing the task pane in Excel" },
+                  ].map(r => (
+                    <tr key={r.field} className="hover:bg-muted/20">
+                      <td className="px-3 py-2 font-medium">{r.field}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{r.req}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{r.val}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Phase 4 — Technical config */}
+          <div className="space-y-2 border-t pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 4</span>
+              <p className="text-sm font-semibold">Technical Configuration</p>
+            </div>
+            <div className="space-y-2 pl-1">
+              <Step>Set the <strong>Landing page URL</strong> to the route that calls <code className="bg-muted px-1 rounded text-xs">/api/saas/resolve</code> on your backend to exchange the marketplace token for a subscription.</Step>
+              <Step>Set the <strong>Connection webhook URL</strong> to <code className="bg-muted px-1 rounded text-xs">/api/saas/webhook</code> on your backend — Microsoft sends subscription lifecycle events here (activate, suspend, unsubscribe).</Step>
+              <Step>Enter your <strong>Azure AD Tenant ID</strong> and <strong>Application (client) ID</strong> — these are your <code className="bg-muted px-1 rounded text-xs">AZURE_TENANT_ID</code> and <code className="bg-muted px-1 rounded text-xs">AZURE_CLIENT_ID</code> env vars.</Step>
+            </div>
+            <div className="mt-3 rounded-lg border bg-muted/30 px-4 py-3 space-y-1">
+              <p className="text-xs font-semibold text-foreground mb-1">Backend env vars needed for SaaS fulfillment</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
+                {["AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET"].map(k => (
+                  <code key={k} className="text-xs font-mono bg-gray-900 text-green-400 px-2 py-1 rounded">{k}</code>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Set these as secrets in your deployment environment (Replit Secrets tab or Render environment).</p>
+            </div>
+          </div>
+
+          {/* Phase 5 — Plans & pricing */}
+          <div className="space-y-2 border-t pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 5</span>
+              <p className="text-sm font-semibold">Plans &amp; Pricing</p>
+            </div>
+            <div className="space-y-2 pl-1">
+              <Step>Add at least one <strong>Plan</strong> — give it an ID (e.g. <code className="bg-muted px-1 rounded text-xs">pro-monthly</code>), a public name, and set billing as <strong>Flat rate</strong> per month.</Step>
+              <Step>Set the <strong>price per user/month</strong> to match what you have in your admin Payment settings (e.g. $5/month).</Step>
+              <Step>Enable <strong>Free trial</strong> (optional, recommended) — 1-month trials significantly improve conversion on AppSource.</Step>
+              <Step>Set <strong>Visibility</strong> to <em>Private</em> while testing, then switch to <em>Public</em> before final submission.</Step>
+            </div>
+          </div>
+
+          {/* Phase 6 — Review & publish */}
+          <div className="space-y-2 border-t pt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 6</span>
+              <p className="text-sm font-semibold">Review &amp; Publish</p>
+            </div>
+            <div className="space-y-2 pl-1">
+              <Step>Click <strong>Review and publish</strong> — Partner Center validates all required fields and shows a checklist of what's incomplete.</Step>
+              <Step>Use <strong>Preview</strong> to test the purchase flow with a preview audience before going live.</Step>
+              <Step>Submit for <strong>Microsoft certification</strong> — review typically takes 2–5 business days. You'll get an email with pass/fail feedback.</Step>
+              <Step done>Once certified, click <strong>Go live</strong> — your offer appears on AppSource within 24–48 hours.</Step>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-blue-200 bg-blue-50/60 px-4 py-3 flex gap-3">
+            <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-800">
+              <strong>Tip:</strong> The full Microsoft SaaS offer documentation is at{" "}
+              <a href="https://learn.microsoft.com/en-us/partner-center/marketplace/create-new-saas-offer" target="_blank" rel="noreferrer" className="underline underline-offset-2 inline-flex items-center gap-0.5 font-medium">
+                learn.microsoft.com/partner-center/marketplace <ExternalLink className="w-3 h-3" />
+              </a>
+            </p>
+          </div>
+
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
