@@ -180,6 +180,17 @@ router.get("/revenue", requireAdmin, (req, res) => {
   });
 });
 
+// GET /api/admin/licenses/lookup?email=...  — look up a subscriber's key by email
+router.get("/licenses/lookup", requireAdmin, (req, res) => {
+  const raw = (req.query.email ?? "").trim().toLowerCase();
+  if (!raw) return res.status(400).json({ error: "email query parameter is required" });
+  const licenses = loadLicenses();
+  const matches = licenses.filter(
+    (l) => (l.email ?? "").toLowerCase() === raw
+  ).sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime());
+  res.json({ email: raw, count: matches.length, licenses: matches });
+});
+
 // DELETE /api/admin/licenses/:key  — revoke a license key
 router.delete("/licenses/:key", requireAdmin, (req, res) => {
   const { key } = req.params;

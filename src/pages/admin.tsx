@@ -8,7 +8,7 @@ import {
   CreditCard, Palette, Database, Download, Upload, Save, Eye, EyeOff,
   Rocket, ExternalLink, AlertCircle, CheckCircle2, Terminal, Bell, TrendingUp,
   Users, DollarSign, Activity, BarChart3, TicketCheck, LayoutDashboard,
-  Clock, XCircle, ArrowRight
+  Clock, XCircle, ArrowRight, Search, Mail
 } from "lucide-react";
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
@@ -125,6 +125,32 @@ function LicensesTab({ pw }: { pw: string }) {
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [bulkKeys, setBulkKeys] = useState<string[]>([]);
   const [bulkExpiresAt, setBulkExpiresAt] = useState<string | null>(null);
+  // Support lookup state
+  const [lookupEmail, setLookupEmail] = useState("");
+  const [lookupResults, setLookupResults] = useState<License[] | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupDone, setLookupDone] = useState(false);
+
+  async function lookupByEmail() {
+    const email = lookupEmail.trim();
+    if (!email) return;
+    setLookupLoading(true);
+    setLookupDone(false);
+    setLookupResults(null);
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/admin/licenses/lookup?email=${encodeURIComponent(email)}`,
+        { headers: { "x-admin-password": pw } }
+      );
+      if (res.ok) {
+        const { licenses } = await res.json();
+        setLookupResults(licenses);
+      }
+    } finally {
+      setLookupLoading(false);
+      setLookupDone(true);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -235,6 +261,93 @@ function LicensesTab({ pw }: { pw: string }) {
 
   return (
     <div className="space-y-4">
+
+      {/* ── Support: Resend License Key ── */}
+      <Card className="border-amber-200 bg-amber-50/40">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Mail className="w-4 h-4 text-amber-600" /> Support: Resend License Key
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Look up a subscriber's license key by their Microsoft account email, then copy it to share with them.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              value={lookupEmail}
+              onChange={e => { setLookupEmail(e.target.value); setLookupDone(false); setLookupResults(null); }}
+              onKeyDown={e => e.key === "Enter" && lookupByEmail()}
+              placeholder="subscriber@company.com"
+              className="flex-1"
+              data-testid="input-lookup-email"
+            />
+            <Button
+              onClick={lookupByEmail}
+              disabled={lookupLoading || !lookupEmail.trim()}
+              variant="outline"
+              className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 shrink-0"
+              data-testid="button-lookup-email"
+            >
+              {lookupLoading
+                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Looking up…</>
+                : <><Search className="w-4 h-4" /> Look Up</>}
+            </Button>
+          </div>
+
+          {/* Results */}
+          {lookupDone && lookupResults !== null && (
+            lookupResults.length === 0 ? (
+              <div className="flex items-center gap-2 rounded-lg bg-white border border-amber-200 px-4 py-3 text-sm text-amber-800" data-testid="text-lookup-no-results">
+                <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
+                No license found for <span className="font-semibold ml-1">{lookupEmail.trim()}</span>
+              </div>
+            ) : (
+              <div className="space-y-2" data-testid="container-lookup-results">
+                <p className="text-xs font-semibold text-amber-700">
+                  {lookupResults.length} license{lookupResults.length > 1 ? "s" : ""} found for {lookupEmail.trim()}
+                </p>
+                {lookupResults.map((l, i) => {
+                  const now = Date.now();
+                  const expired = l.expiresAt ? new Date(l.expiresAt).getTime() < now : false;
+                  return (
+                    <div key={l.licenseKey} className={`rounded-lg border bg-white px-3 py-3 space-y-2 ${expired ? "border-red-200 opacity-70" : "border-amber-200"}`} data-testid={`card-lookup-result-${i}`}>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          {l.planId && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-blue-100 text-blue-700 border-0">
+                              {l.planId}
+                            </Badge>
+                          )}
+                          {expired ? (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-red-100 text-red-700 border-0">Expired</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-green-100 text-green-700 border-0">Active</Badge>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">Issued {fmtDate(l.issuedAt)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 bg-gray-50 rounded-lg border border-gray-200 px-3 py-2">
+                        <code className="flex-1 font-mono text-sm font-bold text-gray-900 tracking-wider select-all break-all" data-testid={`text-lookup-key-${i}`}>
+                          {l.licenseKey}
+                        </code>
+                        <CopyBtn text={l.licenseKey} />
+                      </div>
+                      {l.expiresAt && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {expired ? "Expired" : "Valid until"}: <span className="font-medium">{fmtDate(l.expiresAt)}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+        </CardContent>
+      </Card>
+
       {/* Generate key card */}
       <Card className="border-blue-100 bg-blue-50/40">
         <CardHeader className="pb-3">
