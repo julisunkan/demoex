@@ -118,6 +118,91 @@ function HealthRing({ score }: { score: number }) {
   );
 }
 
+// ── Rotating Tips Panel ───────────────────────────────────────────────────────
+const TIPS = [
+  { icon: "💡", color: "bg-amber-50 border-amber-300",  titleColor: "text-amber-700", title: "Supported column formats",      body: "Your sheet needs a header row with Date, Description, and Amount (or separate Debit/Credit columns). Balance column is optional." },
+  { icon: "🏦", color: "bg-blue-50 border-blue-300",    titleColor: "text-blue-700",  title: "Works with any bank export",    body: "Download a CSV from your online banking portal, open it in Excel, then click Analyze Active Sheet — no manual cleanup needed." },
+  { icon: "🎨", color: "bg-green-50 border-green-300",  titleColor: "text-green-700", title: "Color-code in one click (Pro)", body: "After analysis, click Highlight to color every transaction row by category — great for spotting spending patterns at a glance." },
+  { icon: "🔍", color: "bg-purple-50 border-purple-300",titleColor: "text-purple-700",title: "Filter by amount range",        body: "In the Transactions tab, enter Min / Max amounts to zero in on large or small expenses without scrolling through the whole list." },
+  { icon: "📊", color: "bg-red-50 border-red-300",      titleColor: "text-red-700",   title: "Export a summary sheet (Pro)", body: "Click Export to create a new sheet in your workbook with category totals, a monthly breakdown, and key metrics — all formatted." },
+  { icon: "🔁", color: "bg-teal-50 border-teal-300",    titleColor: "text-teal-700",  title: "Spot subscriptions (Pro)",     body: "The recurring detector finds charges with similar descriptions and amounts repeating month to month — Netflix, gym, utilities, etc." },
+  { icon: "🧾", color: "bg-orange-50 border-orange-300",titleColor: "text-orange-700",title: "Tag tax deductions (Pro)",      body: "In Transactions, tap the 🧾 icon next to any expense to mark it as tax-deductible. The total appears in the Categories tab." },
+  { icon: "💼", color: "bg-indigo-50 border-indigo-300",titleColor: "text-indigo-700",title: "Set category budgets (Pro)",    body: "Open the Budget tab, enter a monthly limit for each category, and instantly see which ones are over or under — with a progress bar." },
+  { icon: "📋", color: "bg-rose-50 border-rose-300",    titleColor: "text-rose-700",  title: "Paste raw bank text",          body: "Can't export a CSV? Use Paste CSV / Bank Statement to paste tab-separated or comma-separated data straight from your browser." },
+  { icon: "⚡", color: "bg-yellow-50 border-yellow-300",titleColor: "text-yellow-700",title: "Re-analyze after changes",     body: "Edited your sheet after analysis? Tap the ↻ refresh button in the header to re-read the data and update all insights instantly." },
+];
+
+function TipPanel() {
+  const [idx, setIdx]         = useState(0);
+  const [visible, setVisible] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (dismissed) return;
+    const timer = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIdx((i) => (i + 1) % TIPS.length);
+        setVisible(true);
+      }, 350);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [dismissed]);
+
+  if (dismissed) return null;
+
+  const tip = TIPS[idx];
+  return (
+    <div className={`rounded-2xl border-2 overflow-hidden transition-all duration-300 ${tip.color} ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"}`}
+      style={{ transition: "opacity 0.3s ease, transform 0.3s ease" }}>
+      {/* Header row */}
+      <div className="flex items-center justify-between px-3.5 pt-3 pb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-lg leading-none">{tip.icon}</span>
+          <p className={`text-xs font-black uppercase tracking-wide ${tip.titleColor}`}>
+            Did You Know?
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Dot indicators */}
+          <div className="flex gap-1">
+            {TIPS.slice(0, 5).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => { setVisible(false); setTimeout(() => { setIdx(i); setVisible(true); }, 200); }}
+                className={`w-1.5 h-1.5 rounded-full transition-all ${i === idx % 5 ? tip.titleColor.replace("text-", "bg-") : "bg-black/15"}`}
+              />
+            ))}
+          </div>
+          {/* Dismiss */}
+          <button
+            onClick={() => setDismissed(true)}
+            className="text-black/30 hover:text-black/60 transition-colors"
+            aria-label="Dismiss tips"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      {/* Tip body */}
+      <div className="px-3.5 pb-3.5">
+        <p className={`text-xs font-black mb-1 ${tip.titleColor}`}>{tip.title}</p>
+        <p className="text-xs text-foreground/70 leading-relaxed">{tip.body}</p>
+      </div>
+      {/* Progress bar */}
+      <div className="h-0.5 bg-black/10 relative overflow-hidden">
+        <div
+          key={`${idx}-bar`}
+          className={`absolute inset-y-0 left-0 ${tip.titleColor.replace("text-", "bg-")} opacity-60`}
+          style={{ animation: "barGrow 6s linear forwards", "--bar-width": "100%" } as React.CSSProperties}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const config = useAppConfig();
@@ -731,6 +816,9 @@ export default function App() {
                   ))}
                 </div>
               </div>
+
+              {/* ── Rotating Tips ── */}
+              <TipPanel />
 
               {/* ── Free vs Pro ── */}
               {!isPro && (
