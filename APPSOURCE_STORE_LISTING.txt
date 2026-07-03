@@ -1,31 +1,41 @@
 ================================================================================
-  FINANCIAL DATA ANALYZER — MICROSOFT APPSOURCE STORE LISTING
-  Ready-to-paste content for Partner Center & Office Add-in submission
+  MAILVAULT PRO — OPTIONAL MICROSOFT APPSOURCE / OFFICE STORE LISTING
+  Ready-to-paste content for a FREE discovery listing (no Microsoft billing)
 ================================================================================
 
 Last updated: July 2026
 
-This file contains all copy needed for:
-  A) The Microsoft AppSource SaaS offer listing (Partner Center)
-  B) The Office Add-in store listing (separate Partner Center submission)
+IMPORTANT — READ FIRST
+================================================================================
+MailVault Pro does NOT sell subscriptions through Microsoft AppSource. All
+billing (USDT payments and license keys) is handled entirely inside the app
+via your own admin portal — there is no Microsoft SaaS Fulfillment offer,
+no Azure AD app registration, and no Microsoft billing integration.
 
-Read the notes in brackets before pasting — some fields have character limits.
+This file is only useful if you choose to ALSO list MailVault Pro on
+AppSource / the Office Store as a free discovery listing, purely so users
+can find and install the add-in from within Outlook's "Get Add-ins"
+dialog. The listing is free to submit, requires no pricing plans, no
+webhook, and no landing page token exchange — it simply points to your
+hosted manifest.xml. Users still unlock Pro the same way regardless of how
+they installed the add-in: by paying with USDT or entering a license key.
+
+If you don't need Office Store discovery, skip AppSource entirely and just
+distribute manifest.xml directly (via Centralized Deployment or a
+sideloading link) — see DEPLOYMENT_GUIDE.txt Part 5.
 
 ================================================================================
-SECTION 1 — OFFER IDENTITY
+SECTION 1 — LISTING IDENTITY
 ================================================================================
-
-Offer ID (permanent, lowercase, no spaces):
-  financial-data-analyzer
-
-Offer alias (internal Partner Center name):
-  Financial Data Analyzer Pro
 
 Publisher display name:
-  Financial Data Analyzer
+  MailVault
 
-App version:
-  2.0.0
+Add-in display name (must match manifest.xml exactly):
+  MailVault Pro for Outlook
+
+Version:
+  1.0.0
 
 ================================================================================
 SECTION 2 — SHORT SUMMARY
@@ -33,11 +43,11 @@ SECTION 2 — SHORT SUMMARY
 
 [AppSource limit: 255 characters. Used in search results and category pages.]
 
-Analyze financial data in Excel — auto-categorize transactions, track budgets,
-detect recurring charges, and export reports. Free plan included. Pro features
-unlocked via Microsoft AppSource subscription.
+Enterprise email backup, restore, and analytics inside Outlook. Free tier
+included. Unlock Pro instantly with a USDT payment or a license key — no
+Microsoft account or subscription required.
 
-[Character count: ~215]
+[Character count: ~205]
 
 ================================================================================
 SECTION 3 — FULL DESCRIPTION
@@ -48,141 +58,124 @@ SECTION 3 — FULL DESCRIPTION
 
 --- PLAIN TEXT VERSION ---
 
-Financial Data Analyzer turns Microsoft Excel into a powerful personal finance
-dashboard — no formulas, no pivot tables, no manual work required.
+MailVault Pro brings enterprise-grade email backup, restore, and analytics
+directly into Outlook — no external portal, no separate app to manage.
 
-Open the add-in, point it at your spreadsheet or paste a CSV export from your
-bank portal, and get an instant breakdown of where your money is going.
+Install it in seconds, and your first backup runs in under two minutes.
+No Microsoft sign-in and no account creation required to get started.
 
-WORKS IN SECONDS
-Financial Data Analyzer automatically detects your date, description, and
-amount columns — no configuration required. It supports debit/credit column
-formats, single-amount column formats, and Excel serial date values.
+FREE FEATURES (no license needed)
+• Back up 1 mailbox
+• Local storage backups
+• Manual, on-demand backups
+• Basic mailbox analytics
+• Community support
 
-FREE FEATURES (no subscription needed)
-• Analyze transactions from any bank or financial institution
-• Auto-categorize into 14 categories: Salary, Groceries, Food & Dining,
-  Transport, Fuel, Utilities, Shopping, Entertainment, Healthcare, Savings,
-  Investments, Loans, Education, and Rent & Housing
-• Monthly income vs. expense trend chart
-• Financial health score with personalized improvement tips
-• Month-over-month category spending comparison
-• Search, filter by category, type, and amount range
-• Top 5 largest individual expenses at a glance
-• Average daily and monthly spending stats
-• Income sources breakdown by category
-• Top merchants ranked by total spend
-• Flag transactions for manual review
-• Recategorize any transaction with one tap
+PRO FEATURES (unlock with USDT payment or license key)
+• Unlimited mailboxes
+• Store backups on Local, Azure Blob, OneDrive, Amazon S3, Google Drive,
+  or Dropbox — configure multiple destinations simultaneously
+• AES-256-GCM encryption on every backup, before it ever leaves your device
+• Automated daily, weekly, or monthly backup scheduling
+• AI-powered mailbox analytics — volume trends, largest senders, folder
+  sizes, storage growth, and projected cleanup savings
+• Multi-user and group support for teams
+• Custom retention policies with automated pruning
+• Advanced audit logs
+• Priority support
 
-PRO FEATURES (AppSource subscription required)
-• Highlight Excel cells by spending category with automatic color coding
-• Export a formatted Excel summary sheet directly to your workbook
-• Download a categorized CSV file for further analysis in any tool
-• Export a color-coded PDF report, or email it directly from the add-in
-• Recurring subscription detector — automatically finds repeat charges
-• Duplicate transaction flagging with one-click review
-• Category budget tracker — set monthly budgets and track spending vs. target
-• Tax deduction tracker — tag transactions as tax-deductible and get your
-  total deductible amount instantly
-• Cash flow projection — estimates next month's income and expenses based on
-  your historical monthly averages
-• Full merchant spending report
+SIMPLE, TRANSPARENT LICENSING
+Unlike typical Office add-ins, MailVault Pro does not lock you into a
+Microsoft-billed subscription. Pay once with USDT (Tron or Ethereum
+network) and get a license key automatically, or enter a license key
+provided directly by your organization or reseller. No recurring
+Microsoft charges, no forced sign-in.
 
-YOUR DATA NEVER LEAVES EXCEL
-All financial analysis happens locally inside your Excel session. No
-transaction data, bank credentials, or personal financial information is ever
-uploaded to any server. Your data stays completely private.
+ONE-CLICK RESTORE
+Restore individual emails, entire folders, or your complete mailbox from
+any backup point. Preview before restoring — no accidental overwrites.
 
-PERFECT FOR
-• Personal monthly budget reviews
-• Tax preparation and deduction tracking
-• Freelancers and self-employed tracking income and business expenses
-• Business expense analysis and reporting
-• Anyone who wants to understand their spending without leaving Excel
+SMART CLEANUP
+Safely delete old newsletters, duplicates, and promotional emails, with a
+full preview before anything is permanently removed.
+
+CENTRALIZED IT DEPLOYMENT
+IT admins can push MailVault Pro to their entire organization via the
+Microsoft 365 Admin Center's Centralized Deployment — zero user action
+required, and no marketplace purchase involved.
 
 GETTING STARTED
-1. Install the add-in from Microsoft AppSource or the Excel Add-ins store
-2. Open any Excel sheet containing your bank data (or paste CSV text)
-3. Click "Analyze Active Sheet" — results appear in seconds
-4. Upgrade to Pro on AppSource to unlock export, budgets, and more
+1. Install the add-in (via Office Store or a direct manifest link from
+   your IT admin)
+2. Open any email in Outlook — MailVault Pro appears in the task pane
+3. Run your first backup — it takes less than two minutes
+4. When ready, pay with USDT or enter a license key to unlock Pro features
 
-Pro plans start at $5/month. Annual plans available at a discount.
+Pro pricing starts at $9.99/month, with an annual plan available at a
+17% discount. Exact pricing is set by your organization's MailVault Pro
+admin portal and may vary.
 
-[Character count: ~2,450]
+[Character count: ~2,050]
 
 --- HTML VERSION (for Partner Center rich text editor) ---
 
-<p><strong>Financial Data Analyzer</strong> turns Microsoft Excel into a powerful personal finance dashboard — no formulas, no pivot tables, no manual work required.</p>
+<p><strong>MailVault Pro</strong> brings enterprise-grade email backup, restore, and analytics directly into Outlook — no external portal, no separate app to manage.</p>
 
-<p>Open the add-in, point it at your spreadsheet or paste a CSV export from your bank portal, and get an instant breakdown of where your money is going.</p>
+<p>Install it in seconds, and your first backup runs in under two minutes. No Microsoft sign-in and no account creation required to get started.</p>
 
-<h3>Works in Seconds</h3>
-<p>Automatically detects your date, description, and amount columns — no configuration required. Supports debit/credit column formats, single-amount formats, and Excel serial date values.</p>
-
-<h3>Free Features — No Subscription Needed</h3>
+<h3>Free Features — No License Needed</h3>
 <ul>
-  <li>Analyze transactions from any bank or financial institution</li>
-  <li>Auto-categorize into 14 categories (Salary, Groceries, Food &amp; Dining, Transport, Fuel, Utilities, Shopping, Entertainment, Healthcare, Savings, Investments, Loans, Education, Rent &amp; Housing)</li>
-  <li>Monthly income vs. expense trend chart</li>
-  <li>Financial health score with personalized tips</li>
-  <li>Month-over-month category comparison</li>
-  <li>Search and filter by category, type, and amount range</li>
-  <li>Top 5 largest individual expenses at a glance</li>
-  <li>Average daily and monthly spending stats</li>
-  <li>Income sources breakdown by category</li>
-  <li>Top merchants ranked by total spend</li>
-  <li>Flag and recategorize transactions</li>
+  <li>Back up 1 mailbox</li>
+  <li>Local storage backups</li>
+  <li>Manual, on-demand backups</li>
+  <li>Basic mailbox analytics</li>
+  <li>Community support</li>
 </ul>
 
-<h3>Pro Features — Unlock with AppSource Subscription</h3>
+<h3>Pro Features — Unlock with a USDT Payment or License Key</h3>
 <ul>
-  <li>Highlight Excel cells by spending category with color coding</li>
-  <li>Export a formatted Excel summary sheet to your workbook</li>
-  <li>Download a categorized CSV file</li>
-  <li>Export or email a color-coded PDF report</li>
-  <li>Recurring subscription detector</li>
-  <li>Duplicate transaction flagging</li>
-  <li>Category budget tracker with spending vs. target bars</li>
-  <li>Tax deduction tracker — tag and total tax-deductible expenses instantly</li>
-  <li>Cash flow projection based on your historical monthly averages</li>
-  <li>Full merchant spending report</li>
+  <li>Unlimited mailboxes</li>
+  <li>Store backups on Local, Azure Blob, OneDrive, Amazon S3, Google Drive, or Dropbox</li>
+  <li>AES-256-GCM encryption on every backup</li>
+  <li>Automated backup scheduling</li>
+  <li>AI-powered mailbox analytics</li>
+  <li>Multi-user and group support</li>
+  <li>Custom retention policies</li>
+  <li>Advanced audit logs</li>
+  <li>Priority support</li>
 </ul>
 
-<h3>Your Data Never Leaves Excel</h3>
-<p>All analysis happens locally. No transaction data is ever uploaded to any server. Your financial information stays completely private.</p>
+<h3>Simple, Transparent Licensing</h3>
+<p>No Microsoft-billed subscription required. Pay once with USDT (Tron or Ethereum network) for an automatic license key, or redeem a key issued directly by your organization. No recurring Microsoft charges, no forced sign-in.</p>
 
-<p><strong>Pro plans start at $5/month.</strong> Annual plans available at a discount.</p>
+<h3>Centralized IT Deployment</h3>
+<p>IT admins can push MailVault Pro to their entire organization via the Microsoft 365 Admin Center's Centralized Deployment — zero user action required.</p>
+
+<p><strong>Pro pricing starts at $9.99/month.</strong> Annual plans available at a discount.</p>
 
 ================================================================================
 SECTION 4 — SEARCH KEYWORDS
 ================================================================================
 
 [AppSource allows up to 3 search keywords per listing. Choose carefully —
- these directly affect discoverability. Pick the terms your target users
- actually type when searching for this kind of tool.]
+ these directly affect discoverability.]
 
 RECOMMENDED (top 3 for AppSource submission):
-  1. bank statement analyzer
-  2. Excel transaction categorizer
-  3. personal finance tracker
+  1. Outlook email backup
+  2. mailbox backup and restore
+  3. email archiving Outlook
 
 EXTENDED LIST (use for SEO, marketing copy, and ad campaigns):
-  • financial data analyzer
-  • Excel budget tracker
-  • transaction categorization
-  • expense tracker Excel
-  • bank statement Excel add-in
-  • spending analysis Excel
-  • Excel finance add-in
-  • monthly budget Excel
-  • income expense tracker
-  • Excel financial dashboard
-  • tax deduction tracker
-  • cash flow Excel
-  • expense report Excel
-  • bank CSV analyzer
-  • financial health score
+  • Outlook add-in backup
+  • email backup software
+  • mailbox restore Outlook
+  • email cleanup tool
+  • Outlook analytics add-in
+  • cloud email backup
+  • enterprise email backup
+  • email retention policy
+  • Outlook data protection
+  • encrypted email backup
 
 ================================================================================
 SECTION 5 — CATEGORIES AND INDUSTRIES
@@ -192,9 +185,10 @@ Primary category:
   Productivity → Office Add-ins
 
 Secondary category (if allowed):
-  Data Analytics → Finance
+  IT & Management Tools → Backup & Recovery
 
 Industries (optional, improves targeted discovery):
+  • IT Services
   • Financial Services
   • Professional Services
   • Small & Medium Business
@@ -203,133 +197,105 @@ Industries (optional, improves targeted discovery):
 SECTION 6 — SUPPORT AND LEGAL URLS
 ================================================================================
 
-[Replace YOUR-DOMAIN with your actual deployed domain before submitting.]
+[Replace YOUR_DOMAIN with your actual deployed domain before submitting.]
 
 Privacy policy URL:
-  https://YOUR-DOMAIN/privacy
+  https://YOUR_DOMAIN/privacy
 
 Support URL:
-  https://YOUR-DOMAIN/support
+  https://YOUR_DOMAIN/support
 
-End User License Agreement URL:
-  https://YOUR-DOMAIN/eula
+Manifest URL (this is what Microsoft indexes for the listing — there is no
+SaaS offer landing page or billing webhook to configure):
+  https://YOUR_DOMAIN/manifest.xml
 
-Landing page URL (for SaaS offer — this receives the AppSource purchase token):
-  https://YOUR-DOMAIN/landing
-
-Webhook URL (for SaaS offer — receives subscription lifecycle events):
-  https://YOUR-API-DOMAIN/api/saas/webhook
+Note: There is no "Landing page URL" or "Connection webhook" field to fill
+in, because there is no Microsoft-billed SaaS offer behind this listing.
+If Partner Center requires these fields for a technical SaaS offer type,
+do NOT create a SaaS offer — submit MailVault Pro as a plain Office
+Add-in listing instead (Section 8 below), which has no billing fields.
 
 ================================================================================
 SECTION 7 — LOGO AND SCREENSHOT REQUIREMENTS
 ================================================================================
 
 LOGOS (required sizes for AppSource submission):
-  • 48 × 48 px     — Small icon (shown in search results)
-  • 90 × 90 px     — Medium icon (REQUIRED)
-  • 216 × 216 px   — Large icon (recommended)
-  • 300 × 300 px   — Store tile (recommended)
-  • 255 × 115 px   — Hero banner (optional, improves listing quality)
+  • 16 × 16 px     — Favicon-style icon
+  • 32 × 32 px     — Small icon (shown in search results)
+  • 80 × 80 px     — Medium/large icon (REQUIRED)
+
+  MailVault Pro's icons are already included in this project at:
+    public/icon-16.png
+    public/icon-32.png
+    public/icon-80.png
 
 Format: PNG with transparent background preferred. No rounded corners —
-AppSource applies its own corner radius.
+the store applies its own corner radius.
 
 SCREENSHOTS (minimum 3 required, maximum 5 recommended):
-  Screenshot 1 — Home screen showing Free vs Pro comparison list
-    Caption: "See what's free and what's included in Pro at a glance"
+  Screenshot 1 — Home/Dashboard tab showing mailbox stats and quick actions
+    Caption: "See mailbox size, storage usage, and backup status at a glance"
 
-  Screenshot 2 — Overview tab with financial health score, KPIs, and monthly chart
-    Caption: "Instant financial health score, income/expense KPIs, and monthly trend"
+  Screenshot 2 — Backup wizard in progress
+    Caption: "Schedule automated backups to local storage or the cloud"
 
-  Screenshot 3 — Categories tab showing income sources and spending breakdown
-    Caption: "Automatic spending breakdown across 14 categories with merchant insights"
+  Screenshot 3 — Restore wizard with folder/email preview
+    Caption: "Preview before restoring — no accidental overwrites"
 
-  Screenshot 4 — Transactions tab with search, filters, and tax tagging
-    Caption: "Search, filter by amount or category, and tag tax-deductible expenses"
+  Screenshot 4 — Analytics tab with volume trends and top senders
+    Caption: "Deep insights into email volume, senders, and storage growth"
 
-  Screenshot 5 — Budget tab (Pro) with budget vs. actual bars
-    Caption: "Set category budgets and track spending vs. target in real time (Pro)"
+  Screenshot 5 — Settings page showing USDT payment and license key options
+    Caption: "Unlock Pro instantly with a USDT payment or a license key —
+              no Microsoft account required"
 
 Dimensions: 1366 × 768 px minimum. PNG or JPEG. Max 1 MB each.
 
 ================================================================================
-SECTION 8 — PRICING PLANS
+SECTION 8 — OFFICE ADD-IN STORE LISTING (RECOMMENDED SUBMISSION TYPE)
 ================================================================================
 
-[Enter these plans in Partner Center → Plan overview → Create new plan.
- Pricing model: Per user. Visibility: Public.]
-
-Plan 1 — Monthly
-  Plan ID:     monthly
-  Plan name:   Monthly
-  Price:       $5.00 per user per month
-  Billing:     Monthly
-
-Plan 2 — 3-Month
-  Plan ID:     quarterly
-  Plan name:   3-Month (Save 20%)
-  Price:       $12.00 per user per quarter ($4.00/month equivalent)
-  Billing:     Quarterly
-
-Plan 3 — 6-Month
-  Plan ID:     biannual
-  Plan name:   6-Month (Save 33%)
-  Price:       $20.00 per user per 6 months ($3.33/month equivalent)
-  Billing:     Semi-annual
-
-Plan 4 — Annual
-  Plan ID:     annual
-  Plan name:   1-Year (Save 42%)
-  Price:       $35.00 per user per year ($2.92/month equivalent)
-  Billing:     Annual
-
-NOTE: Consider adding a 14-day or 30-day free trial on the Monthly plan to
-reduce purchase friction. Microsoft handles trial periods automatically.
-
-================================================================================
-SECTION 9 — OFFICE ADD-IN STORE LISTING (SEPARATE SUBMISSION)
-================================================================================
-
-The Office Add-in listing (submitted via manifest.xml) is separate from the
-SaaS offer. It controls how the add-in appears inside Excel's "Get Add-ins"
-dialog.
+Submit MailVault Pro as a plain "Office Add-in" listing (NOT a "Software
+as a Service (SaaS)" offer). This listing type has no pricing plans, no
+landing page, and no webhook — it only points to your manifest.xml and is
+free to publish.
 
 Display name (must match manifest.xml exactly):
-  Financial Data Analyzer
+  MailVault Pro for Outlook
 
-Short description (for in-Excel discovery, ≤100 chars):
-  Analyze, categorize, and export financial transactions directly in Excel.
+Short description (for in-Outlook discovery, ≤100 chars):
+  Automated email backup, restore, and analytics — right inside Outlook.
 
 Long description (≤300 words):
-  Financial Data Analyzer is a task-pane add-in that transforms any Excel
-  spreadsheet containing bank or financial data into an instant financial
-  dashboard.
+  MailVault Pro is a task-pane add-in that brings enterprise-grade email
+  backup, restore, and analytics directly into Outlook.
 
-  Point it at your data or paste a CSV export from your bank, and it
-  automatically categorizes transactions, calculates your financial health
-  score, shows monthly spending trends, identifies your top merchants, and
-  compares month-over-month category changes.
+  Install it for free and back up your first mailbox in under two minutes
+  — no Microsoft sign-in, no account creation, no external portal.
 
-  Free features include transaction analysis, 14-category auto-categorization,
-  a financial health score, monthly trend charts, amount range filtering, top
-  expense tracking, income source breakdown, and average spending stats.
+  Free features include backup for one mailbox, local storage, manual
+  backups, and basic analytics. Pro features — unlimited mailboxes,
+  multi-cloud storage (Azure Blob, OneDrive, Amazon S3, Google Drive,
+  Dropbox), AES-256-GCM encryption, automated scheduling, AI-powered
+  analytics, custom retention policies, and advanced audit logs — unlock
+  instantly with a one-time USDT payment or a license key, with no
+  recurring Microsoft-billed subscription.
 
-  Pro features (AppSource subscription) add cell highlighting, Excel summary
-  export, CSV and PDF exports, recurring charge detection, duplicate flagging,
-  category budgets, tax deduction tracking, and cash flow projections.
-
-  All analysis runs locally inside Excel — no financial data ever leaves your
-  workbook. Requires a Microsoft account to unlock Pro features via AppSource.
+  IT admins can deploy MailVault Pro to their entire organization via the
+  Microsoft 365 Admin Center's Centralized Deployment, with zero user
+  action required.
 
 Version:
-  2.0.0
+  1.0.0
 
 Supported Office versions:
-  Excel 2016 or later, Excel on the web, Excel for Mac
-  (Requires ExcelApi 1.1+)
+  Outlook 2016 or later, Outlook on the web, Outlook for Mac, Outlook
+  Mobile (Requires Mailbox API 1.1+)
 
 Manifest file:
-  manifest.xml (in the project root — update placeholder values before submitting)
+  manifest.xml (in the project root — replace YOUR_DOMAIN placeholders
+  and generate a fresh <Id> GUID before submitting; see
+  DEPLOYMENT_GUIDE.txt Part 2, Step 2.3)
 
 ================================================================================
 END OF STORE LISTING

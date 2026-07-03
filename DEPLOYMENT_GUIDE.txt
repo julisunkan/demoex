@@ -1,12 +1,13 @@
 ================================================================================
-  FINANCIAL DATA ANALYZER — COMPLETE DEPLOYMENT GUIDE
-  Microsoft AppSource + Azure AD + Render Hosting
+  MAILVAULT PRO — COMPLETE DEPLOYMENT GUIDE
+  Self-Hosted Outlook Add-in · USDT Payments & License Keys
 ================================================================================
 
 Last updated: July 2026
-This guide walks you through every step needed to deploy the add-in to
-production, connect it to Microsoft AppSource for billing, and configure
-Azure Active Directory (Entra ID) for user authentication.
+This guide walks you through deploying MailVault Pro to production and
+configuring it for your organization. There is no Microsoft AppSource
+listing, no Azure AD app registration, and no Microsoft sign-in required —
+MailVault Pro is fully self-hosted and self-licensed.
 
 Read this entire document before starting. Steps must be done in order
 because later steps depend on values you collect in earlier ones.
@@ -15,774 +16,279 @@ because later steps depend on values you collect in earlier ones.
 PART 0 — WHAT YOU ARE DEPLOYING
 --------------------------------------------------------------------------------
 
-Financial Data Analyzer is a Microsoft Excel add-in with two parts:
+MailVault Pro is a Microsoft Outlook add-in with two parts:
 
   1. Frontend (React + Vite)
-     A task-pane web app that runs inside Excel. It shows the analyzer UI,
-     signs the user in with their Microsoft account, and checks whether they
-     have an active AppSource subscription.
+     A task-pane web app that runs inside Outlook. It shows the backup,
+     restore, cleanup, and analytics dashboards, plus a Settings page where
+     users unlock Pro via a USDT payment or a license key.
 
   2. Backend (Node.js / Express)
      An API server that handles:
-       - Microsoft SaaS Fulfillment API calls (subscription lifecycle)
-       - User subscription verification via Microsoft Graph
-       - The AppSource landing page logic
-       - Admin settings, ticket management, and email notifications
+       - Mailbox backup, restore, and cleanup operations
+       - Analytics data
+       - Billing: USDT payment submissions and license key issuance/redemption
+       - Admin settings, license management, and payment approval
+       - Optional outgoing notification webhooks and email reminders
 
 Billing works as follows:
-  - Users subscribe to your offer on Microsoft AppSource.
-  - Microsoft charges the user's credit card / Microsoft billing account.
-  - Microsoft sends lifecycle events (Subscribed, Unsubscribed, etc.) to
-    your webhook URL so your server knows who has access.
-  - Users sign in with Microsoft inside Excel; your server confirms they
-    have an active subscription before unlocking Pro features.
-  - You never handle credit cards directly — Microsoft does everything.
+  - Users install the add-in for free and get the Free tier immediately —
+    no account, no Microsoft sign-in.
+  - To unlock Pro, a user either:
+      a) Sends a USDT payment to your wallet address and submits the
+         transaction hash in the app. An admin reviews and approves it in
+         the admin portal, which automatically issues a license key.
+      b) Enters a license key you issued directly (e.g. for enterprise
+         deals, trials, or manual sales channels).
+  - You control 100% of the payment and licensing flow — there is no
+    third-party marketplace or billing intermediary.
 
-Current pricing plans (configured in server/data/settings.json):
-  • Monthly:   $5.00 / user / month
-  • 3-Month:   $12.00 / user / quarter
-  • 6-Month:   $20.00 / user / 6 months
-  • Annual:    $35.00 / user / year
+Current pricing plans (configured in server/data/settings.json, editable
+from the admin portal's Billing Settings panel):
+  • Monthly:  $9.99  / month
+  • Annual:   $99.99 / year (17% discount)
 
-Free features (no subscription): transaction analysis, 14-category
-auto-categorization, financial health score, monthly trend chart, amount range
-filter, top expenses, spending stats, income sources breakdown, and merchant
-breakdown.
+Free features (no license needed): 1 mailbox, local storage only, manual
+backups, basic analytics, community support.
 
-Pro features (subscription required): cell highlighting, Excel/CSV/PDF export,
-recurring charge detection, duplicate flagging, category budgets, tax deduction
-tracker, and cash flow projection.
-
---------------------------------------------------------------------------------
-PART 1 — ACCOUNTS YOU NEED TO CREATE (DO FIRST)
---------------------------------------------------------------------------------
-
-Before writing a single line of configuration, make sure you have access to:
-
-  A) A Microsoft Azure account
-     → https://portal.azure.com
-     → Free tier is fine for development. You need this to register your app
-       with Azure Active Directory (Entra ID) so users can "Sign in with
-       Microsoft" and your server can call the SaaS Fulfillment API.
-
-  B) A Microsoft Partner Center account (for AppSource publishing)
-     → https://partner.microsoft.com
-     → You must enroll in the "Commercial Marketplace" program.
-     → Individual publishers need to verify identity. Companies need a
-       registered business. This verification can take 1–5 business days.
-     → There is no fee to list free or paid SaaS apps on AppSource.
-
-  C) A Render account (for hosting the backend and frontend)
-     → https://render.com
-     → Free tier works for testing; Starter plan ($7/month) recommended for
-       production (no sleep delays on requests).
-
-  D) A custom domain (recommended for production)
-     → Examples: yourdomain.com, finanalyzer.io
-     → Required for AppSource submissions (localhost URLs are not accepted).
-     → You can get one from Namecheap, Google Domains, Cloudflare, etc.
+Pro features (USDT payment or license key required): unlimited mailboxes,
+all cloud storage providers (Local, Azure Blob, OneDrive, Amazon S3, Google
+Drive, Dropbox), AES-256-GCM encryption, automated scheduling, AI-powered
+analytics, multi-user/group support, custom retention policies, advanced
+audit logs, and priority support.
 
 --------------------------------------------------------------------------------
-PART 2 — AZURE ACTIVE DIRECTORY: REGISTER YOUR APP
+PART 1 — WHAT YOU NEED BEFORE STARTING
 --------------------------------------------------------------------------------
 
-This step creates an "App Registration" — a way for Microsoft to know your
-application exists and can authenticate users.
+  A) A hosting environment for the Node.js app
+     → Replit Deployments is the simplest path (this project is already
+       configured for it — see Part 2).
+     → Any other Node.js host (Render, Railway, Fly.io, a VPS, etc.) also
+       works since the app has no platform-specific dependencies.
 
-STEP 2.1 — Open the Azure Portal
-  → Go to https://portal.azure.com
-  → Sign in with your Microsoft account
-  → In the top search bar, type "Azure Active Directory" and click it
-    (It may now be labeled "Microsoft Entra ID" — same thing)
+  B) A custom domain (recommended for production)
+     → Required so Outlook can load your add-in over HTTPS from a stable
+       URL. Replit Deployments gives you a `*.replit.app` HTTPS domain out
+       of the box; you can attach a custom domain later if you want one.
 
-STEP 2.2 — Create a new App Registration
-  → Click "App registrations" in the left sidebar
-  → Click "+ New registration" at the top
-  → Fill in:
-      Name:           Financial Data Analyzer
-                      (This is what users see when they sign in)
-      Supported account types:
-                      Choose "Accounts in any organizational directory
-                      (Any Azure AD directory - Multitenant) and personal
-                      Microsoft accounts (e.g. Skype, Xbox)"
-                      WHY: This allows both work/school accounts AND
-                      personal Microsoft accounts to sign in.
-      Redirect URI:   Choose "Single-page application (SPA)" from the
-                      dropdown, then enter:
-                      https://YOUR-RENDER-DOMAIN.onrender.com
-                      (We will update this later with your real domain.
-                      For now, also add: http://localhost:5000)
-  → Click "Register"
+  C) A USDT wallet address (for accepting crypto payments)
+     → Any TRC-20 (Tron network) or ERC-20 (Ethereum network) USDT wallet
+       you control. You will enter this address in the admin portal —
+       no third-party payment processor is involved.
 
-STEP 2.3 — Note your Application (client) ID
-  → After registration, you are taken to the app's Overview page.
-  → Copy and save the value labeled:
-        "Application (client) ID"
-  → It looks like: 12345678-abcd-1234-efgh-123456789012
-  → This is your AZURE_CLIENT_ID (and VITE_AZURE_CLIENT_ID).
+  D) (Optional) An SMTP account for email notifications
+     → Only needed if you want the app to email you when a payment is
+       submitted, or email users when their license is about to expire.
+     → Any standard SMTP provider works (Gmail, SendGrid, Mailgun, etc.).
 
-STEP 2.4 — Note your Directory (tenant) ID
-  → On the same Overview page, copy:
-        "Directory (tenant) ID"
-  → It looks like: 87654321-dcba-4321-hgfe-210987654321
-  → This is your AZURE_TENANT_ID.
-  → For the frontend (VITE_AZURE_TENANT_ID), use "common" instead of
-    your specific tenant ID — this allows ANY Microsoft account to sign in,
-    not just accounts from your organization.
-
-STEP 2.5 — Add API permissions
-  → Click "API permissions" in the left sidebar
-  → Click "+ Add a permission"
-  → Choose "Microsoft Graph"
-  → Choose "Delegated permissions"
-  → Search for and add these four permissions:
-        openid         (lets users sign in)
-        profile        (gets their name)
-        email          (gets their email address)
-        User.Read      (lets your server verify their identity via Graph)
-  → Click "Add permissions"
-  → Click "Grant admin consent for [your org]" (the blue button)
-    If you don't see this button, ask your Azure admin to grant consent,
-    OR your users will be asked to consent themselves on first sign-in.
-
-STEP 2.6 — Create a Client Secret (for server-to-server calls)
-  → Click "Certificates & secrets" in the left sidebar
-  → Click "+ New client secret"
-  → Description: "Production server secret"
-  → Expires: Choose "24 months" (you'll need to rotate it before it expires)
-  → Click "Add"
-  → IMMEDIATELY copy the secret VALUE (not the ID). It disappears after
-    you leave this page.
-  → This is your AZURE_CLIENT_SECRET.
-
-STEP 2.7 — Configure the Application ID URI (for Office SSO)
-  This allows the add-in to use Office's built-in single sign-on so users
-  don't need to click a sign-in button every time they open Excel.
-  → Click "Expose an API" in the left sidebar
-  → Next to "Application ID URI", click "Add"
-  → The suggested URI will be: api://YOUR_CLIENT_ID
-    Change it to: api://YOUR-RENDER-DOMAIN.onrender.com/YOUR_CLIENT_ID
-    Example: api://financial-data-analyzer-api.onrender.com/12345678-abcd-1234-efgh-123456789012
-  → Click "Save"
-  → Click "+ Add a scope"
-  → Scope name: access_as_user
-  → Who can consent: Admins and users
-  → Admin consent display name: Access Financial Data Analyzer
-  → Admin consent description: Allows the app to access Financial Data Analyzer on behalf of the signed-in user.
-  → User consent display name: Access Financial Data Analyzer
-  → User consent description: Allows the app to access Financial Data Analyzer on your behalf.
-  → State: Enabled
-  → Click "Add scope"
-  → Click "+ Add a client application"
-  → Enter: ea5a67f6-b6f3-4338-b240-c655ddc3cc8e
-    (This is Microsoft Office's well-known client ID — it allows Excel to
-    request tokens on behalf of your users for SSO.)
-  → Check the box next to your api://... scope
-  → Click "Add application"
-
-STEP 2.8 — Update manifest.xml
-  Open the file manifest.xml in this project and replace the placeholders:
-  → Find: YOUR_AZURE_CLIENT_ID
-    Replace with: your actual client ID from Step 2.3
-  → Find: YOUR_DOMAIN
-    Replace with: your Render domain (e.g., financial-data-analyzer-api.onrender.com)
-  → Also update the SourceLocation, IconUrl, HighResolutionIconUrl,
-    and SupportUrl values to use your real Render frontend domain.
+  E) (Optional) A Microsoft 365 tenant with admin access
+     → Only needed if you plan to push the add-in to your whole
+       organization via Centralized Deployment (Part 5). Not required for
+       individual sideloading/testing.
 
 --------------------------------------------------------------------------------
-PART 3 — DEPLOY THE APPLICATION TO RENDER
+PART 2 — DEPLOY THE APPLICATION
 --------------------------------------------------------------------------------
 
-Render hosts your backend (API server) and frontend (React app) so they're
-accessible from the internet.
+STEP 2.1 — Deploy on Replit (recommended — fastest path)
+  This project is already configured for Replit Deployments:
+    - Build command:  npm run build
+    - Run command:    node ./dist/index.cjs
+    - Public dir:     dist/public
+    - Deployment target: autoscale
 
-STEP 3.1 — Push your code to GitHub
-  → Create a new repository at https://github.com
-  → In your local project folder, run:
-        git init
-        git add .
-        git commit -m "Initial deployment"
-        git remote add origin https://github.com/YOUR_USERNAME/financial-data-analyzer.git
-        git push -u origin main
+  → Open the Deployments tab in your Replit workspace
+  → Click "Deploy"
+  → Set the required environment variables (see Part 3) as Secrets before
+    or during setup
+  → Once deployed, note your public URL, e.g. https://your-app.replit.app
+    This is the domain you will use everywhere below as YOUR_DOMAIN.
 
-STEP 3.2 — Deploy using render.yaml (recommended — fastest path)
-  The project includes a render.yaml that pre-configures both services.
-  → Go to https://render.com and sign in
-  → Click "New +" → "Blueprint"
-  → Connect your GitHub repository
-  → Render detects render.yaml automatically and shows both services:
-        financial-data-analyzer-api  (Web Service — Node backend)
-        financial-data-analyzer-app  (Static Site — React frontend)
-  → Render prompts you for env vars marked sync:false (the secrets).
-    Fill in at minimum:
-        AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
-        ADMIN_PASSWORD, SESSION_SECRET
-        FRONTEND_URL       → set AFTER the static site URL is known (Step 3.3)
-        VITE_API_URL       → set AFTER the backend URL is known (Step 3.2)
-        VITE_AZURE_CLIENT_ID
-  → Click "Create new resources"
-  → Wait for both deploys to complete (~5-8 minutes on first run)
-  → After both are live, update FRONTEND_URL and VITE_API_URL with the real
-    URLs and trigger a redeploy so the values take effect.
+STEP 2.2 — Deploy elsewhere (alternative)
+  If you prefer another host, the app is a standard Node.js app:
+    → Build:   npm run build
+    → Start:   node ./dist/index.cjs   (serves both the API and the
+               built frontend from a single Node process, listening on
+               the PORT env var)
+    → Point your host's build/run commands at the above.
+  Make sure your host serves the app over HTTPS on a stable domain —
+  Outlook will not load an add-in manifest served over plain HTTP.
 
-  Alternatively, create services manually:
+STEP 2.3 — Update the manifest with your real domain
+  Open manifest.xml in this project and replace every occurrence of
+  YOUR_DOMAIN with your actual deployed domain (e.g.
+  your-app.replit.app). This includes:
+    - IconUrl, HighResolutionIconUrl
+    - SupportUrl
+    - AppDomains → AppDomain
+    - FormSettings → DesktopSettings → SourceLocation
+  Also generate a fresh, unique GUID for the <Id> field (use
+  https://www.guidgenerator.com) — do not ship the placeholder ID.
 
-STEP 3.2a — Create the Backend Web Service manually (if not using Blueprint)
-  → Click "New +" → "Web Service"
-  → Connect your GitHub account and select your repository
-  → Configure:
-        Name:           financial-data-analyzer-api
-        Region:         Oregon (US West) or closest to your users
-        Branch:         main
-        Runtime:        Node
-        Build Command:  npm install --prefix server
-        Start Command:  node server/index.js
-        Instance Type:  Starter ($7/month) — Free tier has 15-min cold starts
-        Health Check Path: /api/health
-  → Click "Advanced" to add environment variables (see Part 4 below)
-  → Click "Create Web Service"
-  → Wait for the first deploy to complete (~3-5 minutes)
-  → Copy the URL shown (e.g., https://financial-data-analyzer-api.onrender.com)
-    This is your BACKEND URL — you need it for Part 4.
-
-STEP 3.3 — Create the Frontend Static Site manually (if not using Blueprint)
-  → Click "New +" → "Static Site"
-  → Select the same GitHub repository
-  → Configure:
-        Name:             financial-data-analyzer-app
-        Branch:           main
-        Build Command:    npm install && npm run build
-        Publish Directory: dist/public
-  → Under "Redirects/Rewrites", add a rewrite rule:
-        Source: /*    →    Destination: /index.html
-    (Required for React Router — without this, direct URL navigation returns 404)
-  → Click "Advanced" to add environment variables (see Part 4 below)
-  → Click "Create Static Site"
-  → Wait for the build to complete (~3-5 minutes)
-  → Copy the URL shown (e.g., https://financial-data-analyzer-app.onrender.com)
-    This is your FRONTEND URL — update manifest.xml and FRONTEND_URL with this.
-
-STEP 3.4 — Update Azure redirect URIs with your real URLs
-  → Go back to your Azure App Registration → "Authentication"
-  → Under "Single-page application", add your Render frontend URL:
-        https://financial-data-analyzer-app.onrender.com
-        https://financial-data-analyzer-app.onrender.com/landing
-  → Click "Save"
+  Your manifest will be served automatically at:
+        https://YOUR_DOMAIN/manifest.xml
+  You can also view/download a live copy from inside the app at
+  Settings → Deployment Guide → Manifest Reference.
 
 --------------------------------------------------------------------------------
-PART 4 — ENVIRONMENT VARIABLES
+PART 3 — ENVIRONMENT VARIABLES
 --------------------------------------------------------------------------------
 
-Environment variables store secrets and configuration values outside your
-code. You must set these in both Replit (for development) and Render (for
-production). Never commit secrets to Git.
+Environment variables store secrets and configuration outside your code.
+Set these as Replit Secrets (or your host's equivalent). Never commit
+secrets to Git.
 
-BACKEND ENVIRONMENT VARIABLES (set in Render → financial-data-analyzer-api → Environment)
-===========================================================================================
-
-  AZURE_TENANT_ID
-    What it is: Your Azure AD tenant ID from Step 2.4
-    Example:    87654321-dcba-4321-hgfe-210987654321
-    Why needed: Used to get an access token for the SaaS Fulfillment API.
-                Without this, the server cannot verify or activate
-                Microsoft subscriptions.
-
-  AZURE_CLIENT_ID
-    What it is: Your app registration client ID from Step 2.3
-    Example:    12345678-abcd-1234-efgh-123456789012
-    Why needed: Identifies your application when calling Microsoft APIs.
-
-  AZURE_CLIENT_SECRET
-    What it is: The secret value you created in Step 2.6
-    Example:    abc~defghijk.lmn_opqrstu123456789VWX
-    Why needed: Authenticates your server to Microsoft (server-to-server auth).
-    WARNING:    This is a password. Treat it like one. Do not share it or
-                commit it to source control.
+REQUIRED
+========
 
   ADMIN_PASSWORD
-    What it is: A password you choose to protect the /admin panel
-    Example:    my-very-secure-admin-password-2024
-    Why needed: The admin panel at /admin lets you view settings and export
-                data. This password protects it from public access.
+    What it is: A password you choose to protect the /admin panel and its
+                API routes.
+    Why needed: The admin portal lets you configure billing settings,
+                approve USDT payments, and issue/revoke license keys. This
+                password gates every admin API request (sent as the
+                x-admin-password header).
     Recommendation: Use a password manager to generate a 20+ character
-                random password.
+                random password. If left unset, the admin portal is open
+                to anyone — never leave this unset in production.
 
-  SESSION_SECRET
-    What it is: A long random string used to sign session cookies
-    Example:    use `openssl rand -base64 32` to generate one
-    Why needed: Prevents session tampering.
+  VITE_ADMIN_PASSWORD
+    What it is: The same password as ADMIN_PASSWORD, exposed to the
+                frontend build so the admin login screen can send it.
+    Why needed: Must match ADMIN_PASSWORD exactly, or admin login will
+                fail with 401s.
 
-  PORT (optional)
-    What it is: The port the server listens on
-    Default:    3001
-    Note:       Render sets this automatically — you usually don't need it.
+OPTIONAL
+========
 
-  FRONTEND ENVIRONMENT VARIABLES (set in Render → financial-data-analyzer-app → Environment)
-  ============================================================================================
-  NOTE: Vite frontend variables MUST start with VITE_ to be included in the build.
+  PORT
+    What it is: The port the server listens on.
+    Default:    3001 (or 5000 in the Replit dev workflow)
+    Note:       Most hosts, including Replit Deployments, set this
+                automatically — you usually don't need to set it yourself.
 
-  VITE_AZURE_CLIENT_ID
-    What it is: Same as AZURE_CLIENT_ID above
-    Example:    12345678-abcd-1234-efgh-123456789012
-    Why needed: The frontend MSAL library uses this to sign users in.
+  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+    What they are: Credentials for an SMTP server.
+    Why needed: Only required if you enable email notifications (payment
+                alerts, license expiry reminders) from the admin portal's
+                Billing Settings panel. Leave blank to disable email
+                features entirely — the app works fully without them.
 
-  VITE_AZURE_TENANT_ID
-    What it is: "common" (recommended) or your specific tenant ID
-    Recommended value: common
-    Why "common": Using "common" allows ALL Microsoft accounts to sign in —
-                  personal (Outlook, Hotmail) AND work/school accounts.
-                  Using your specific tenant ID would restrict to only your
-                  organization's accounts.
-
-  VITE_API_URL
-    What it is: The full URL of your backend service
-    Example:    https://financial-data-analyzer-api.onrender.com
-    Why needed: The frontend needs to know where to send API requests
-                (subscription checks, SaaS resolve, etc.)
-
-  VITE_APPSOURCE_URL
-    What it is: The URL of your offer on Microsoft AppSource
-    Example:    https://appsource.microsoft.com/en-us/product/office/WA200012345
-    Why needed: The "Subscribe on AppSource" buttons link here.
-    Note:       You get this URL after publishing your offer (Part 5).
-                For now, use: https://appsource.microsoft.com
-
-SETTING VARIABLES IN REPLIT (for local development)
-=====================================================
-  → In Replit, click the lock icon (🔒) in the left sidebar labeled "Secrets"
-  → Add each variable with the same names as above
-  → For VITE_ variables, also add them as Replit Secrets — Vite picks them
-    up automatically during development
-  → A complete .env.example file is included in the project root — it lists
-    every variable with a description. Copy it to .env for local development.
+There is no AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, or any
+other Microsoft/Azure credential to configure. MailVault Pro does not use
+Microsoft sign-in or the Microsoft SaaS Fulfillment API.
 
 --------------------------------------------------------------------------------
-PART 5 — MICROSOFT PARTNER CENTER: CREATE YOUR APPSOURCE OFFER
+PART 4 — CONFIGURE BILLING IN THE ADMIN PORTAL
 --------------------------------------------------------------------------------
 
-This is the most involved part. Partner Center is where you configure what
-users see on AppSource, set your pricing plans, and connect Microsoft's
-billing system to your backend.
+Once deployed, log in to the admin portal at https://YOUR_DOMAIN/admin
+using your ADMIN_PASSWORD.
 
-STEP 5.1 — Access Partner Center
-  → Go to https://partner.microsoft.com/en-us/dashboard
-  → Sign in with your Microsoft account
-  → If you haven't already, complete the publisher enrollment:
-        → Click "Become a partner" or "Enroll"
-        → Choose "Commercial Marketplace"
-        → Complete identity and business verification
-        → This can take 1–5 business days
+STEP 4.1 — Set your USDT wallet address
+  → Go to "Billing Settings"
+  → Enter your USDT wallet address and select the network (Tron/TRC-20 or
+    Ethereum/ERC-20)
+  → This is the address users are shown when they choose to pay with USDT
 
-STEP 5.2 — Create a new SaaS offer
-  → In Partner Center, go to "Marketplace offers"
-  → Click "+ New offer" → "Software as a Service (SaaS)"
-  → Enter an Offer ID: financial-data-analyzer
-    (This is a permanent, lowercase identifier — choose carefully)
-  → Enter an Offer alias (internal name): Financial Data Analyzer Pro
-  → Click "Create"
+STEP 4.2 — Review or edit pricing plans
+  → Still in "Billing Settings", edit the Monthly and Annual plan prices,
+    labels, and durations as needed
+  → Changes take effect immediately — no redeploy required (plans are
+    stored in server/data/settings.json)
 
-STEP 5.3 — Offer Setup (Technical Configuration tab)
-  This is where you connect Microsoft to your server.
+STEP 4.3 — Approve USDT payments
+  → Go to "USDT Payments"
+  → When a user submits a transaction hash, review it against your wallet's
+    transaction history
+  → Click "Approve" to automatically issue a license key to the user, or
+    "Reject" if the payment can't be verified
 
-  Landing page URL:
-    Enter: https://financial-data-analyzer-app.onrender.com/landing
-    WHY: When a user completes a purchase on AppSource, Microsoft redirects
-    them to this URL with a ?token=... parameter. Your landing page calls
-    /api/saas/resolve and /api/saas/activate to complete the setup.
+STEP 4.4 — Issue license keys manually
+  → Go to "Licenses"
+  → Click "Create License" to generate a key you can hand out directly
+    (for enterprise deals, trials, resellers, etc.) without requiring a
+    USDT payment
+  → Keys can be revoked at any time from the same panel
 
-  Connection webhook:
-    Enter: https://financial-data-analyzer-api.onrender.com/api/saas/webhook
-    WHY: Microsoft sends subscription lifecycle events (cancel, suspend,
-    renew, plan changes) to this URL so your server stays in sync.
-
-  Azure Active Directory tenant ID:
-    Enter your AZURE_TENANT_ID from Step 2.4
-
-  Azure Active Directory application ID:
-    Enter your AZURE_CLIENT_ID from Step 2.3
-
-  → Click "Save draft"
-
-STEP 5.4 — Offer Listing (Properties and Listing tabs)
-  Fill in the marketplace listing that users see. Full copy is available
-  in APPSOURCE_STORE_LISTING.txt in this project.
-
-  → Categories: Productivity → Office Add-ins (and/or Data Analytics)
-  → Industries: Financial Services
-  → App version: 2.0.0
-  → Privacy policy URL:  https://financial-data-analyzer-app.onrender.com/privacy
-  → Support URL:         https://financial-data-analyzer-app.onrender.com/support
-  → Offer name:          Financial Data Analyzer
-  → Summary (255 chars): See APPSOURCE_STORE_LISTING.txt → Section 2
-  → Description:         See APPSOURCE_STORE_LISTING.txt → Section 3
-  → Search keywords:     bank statement analyzer, Excel transaction categorizer,
-                         personal finance tracker
-  → Screenshots: Minimum 3 required (1366×768 px). See APPSOURCE_STORE_LISTING.txt → Section 7
-  → Logos: Required sizes — 90×90 px and 48×48 px minimum.
-           See APPSOURCE_STORE_LISTING.txt → Section 7 for full size list.
-
-STEP 5.5 — Create Pricing Plans
-  → Click the "Plan overview" tab
-  → Click "+ Create new plan"
-  → Create the following four plans (matching server/data/settings.json):
-
-    Plan 1 — Monthly
-      Plan ID:    monthly
-      Plan name:  Monthly
-      Price:      $5.00 per user per month
-      Billing:    Monthly
-
-    Plan 2 — 3-Month
-      Plan ID:    quarterly
-      Plan name:  3-Month (Save 20%)
-      Price:      $12.00 per user per quarter
-      Billing:    Quarterly
-
-    Plan 3 — 6-Month
-      Plan ID:    biannual
-      Plan name:  6-Month (Save 33%)
-      Price:      $20.00 per user per 6 months
-      Billing:    Semi-annual
-
-    Plan 4 — Annual
-      Plan ID:    annual
-      Plan name:  1-Year (Save 42%)
-      Price:      $35.00 per user per year
-      Billing:    Annual
-
-  → For each plan, set:
-      Markets: Select which countries to sell in
-      Pricing model: Per user (recommended — each user buys a seat)
-      Visibility: Public
-
-  → Consider adding a 14-day or 30-day free trial on the Monthly plan to
-    reduce purchase friction. Microsoft handles trial periods automatically.
-
-  IMPORTANT: The plan IDs above (monthly, quarterly, biannual, annual) must
-  match exactly what is in server/data/settings.json. The server uses these
-  IDs to look up plan details when processing webhook events.
-
-STEP 5.6 — Technical add-in package (for Office Add-ins specifically)
-  If you want the add-in listed in the Office store (within Excel's
-  "Get Add-ins" dialog), you also need to submit via:
-  → https://partner.microsoft.com → Marketplace offers → + New offer
-    → "Office add-in"
-  This is a SEPARATE listing from the SaaS offer above. The SaaS offer
-  handles billing; the Office Add-in listing handles discovery in Excel.
-  In the Office Add-in submission:
-  → Upload your manifest.xml (with all placeholders replaced)
-  → Use the copy from APPSOURCE_STORE_LISTING.txt → Section 9
-
-STEP 5.7 — Submit for review
-  → Go through all tabs and ensure no red warning indicators remain
-  → Click "Review and publish"
-  → Microsoft's AppSource team reviews submissions manually
-  → Initial review takes 7–14 business days
-  → They may request changes; respond promptly to avoid further delays
-  → After approval, your offer goes live on AppSource
+STEP 4.5 — (Optional) Configure notifications
+  → Enable email reminders for licenses nearing expiry, and/or set an
+    outgoing webhook URL to receive payment.submitted, payment.approved,
+    license.redeemed, and license.expiring events in your own systems
+    (Slack, Zapier, a ticketing system, etc.)
 
 --------------------------------------------------------------------------------
-PART 6 — TESTING THE SUBSCRIPTION FLOW (before going live)
+PART 5 — CENTRALIZED DEPLOYMENT TO YOUR ORGANIZATION (OPTIONAL)
 --------------------------------------------------------------------------------
 
-You can test the entire flow with a fake "preview" purchase before your
-offer is publicly live.
+If you want to push MailVault Pro to every mailbox in your Microsoft 365
+tenant without any user action, use Centralized Deployment via the
+Microsoft 365 Admin Center. No AppSource listing or app review is
+required — you upload your own manifest directly.
 
-STEP 6.1 — Test with the development environment
-  While the server is running locally (npm run dev):
+STEP 5.1 — Sign in to the Microsoft 365 Admin Center
+  → Go to https://admin.microsoft.com
+  → Sign in with a Global Administrator account
 
-  A) Test the /api/saas/status endpoint:
-     → Open: http://localhost:3001/api/saas/status
-     → If Azure credentials are set, you should see: {"configured": true}
-     → If not: {"configured": false} — check your env vars
+STEP 5.2 — Upload the custom add-in
+  → Go to Settings → Integrated apps
+  → Click "Upload custom apps"
+  → Choose "Office Add-in" and upload your manifest.xml, or provide the
+    manifest URL: https://YOUR_DOMAIN/manifest.xml
+  → Select which users or groups should receive it (or deploy to everyone)
+  → Click "Deploy"
 
-  B) Test user authentication:
-     → Open: http://localhost:5000
-     → The add-in home screen should show "Financial Data Analyzer" with
-       a "Free vs Pro" section listing all 10 free and 10 pro features
-     → Click "Get Pro" — the SignInGate should appear
-     → Click "Sign in with Microsoft" — an MSAL popup should open
-     → Sign in with any Microsoft account
-     → If you have an active AppSource subscription: Pro features unlock
-     → If not: you see the "No active subscription" message
+  This uploads your own manifest directly — no marketplace listing or
+  Microsoft billing is involved. Users will see MailVault Pro appear in
+  Outlook automatically within a few hours.
 
-  C) Test the landing page:
-     → Open: http://localhost:5000/landing
-     → Without a ?token= parameter, you should see an error message
-     → This is expected — the token comes from Microsoft in production
+STEP 5.3 — Test before organization-wide rollout
+  Sideload the manifest for yourself first:
+    → In Outlook on the web, go to Get Add-ins → My add-ins →
+      Add a custom add-in → Add from URL / Add from file
+    → Provide https://YOUR_DOMAIN/manifest.xml (or the local file)
+  Confirm the add-in loads, backups/restores work, and the Settings page
+  correctly shows Free vs Pro state before deploying to your whole
+  organization.
 
-STEP 6.2 — Use the AppSource preview functionality
-  → In Partner Center, before publishing publicly, you can generate a
-    "preview" marketplace token to test the full purchase flow
-  → Go to your offer → "Preview" tab
-  → Add your own Azure account email as a preview audience
-  → Click "Go live" → then "Preview" to get a test purchase link
-  → This simulates the exact flow a real customer goes through
+--------------------------------------------------------------------------------
+PART 6 — TESTING THE BILLING FLOW BEFORE GOING LIVE
+--------------------------------------------------------------------------------
 
-STEP 6.3 — Verify webhook reception
-  → After a test subscription, check your Render logs for the API service:
-        Log line: "[saas] webhook: Subscribed — {subscriptionId}"
-  → Confirm the subscription was recorded:
-        GET https://financial-data-analyzer-api.onrender.com/api/saas/subscriptions
-        (Requires X-Admin-Password header — see Part 9)
+STEP 6.1 — Verify the backend is healthy
+  → Open: https://YOUR_DOMAIN/api/health
+  → You should see: {"ok": true, "service": "MailVault Pro API", ...}
+
+STEP 6.2 — Test license issuance and redemption
+  → Log in to /admin and create a test license key
+  → In the app's Settings page, enter the key under "Have a license key?"
+  → Confirm the app switches to Pro state immediately
+
+STEP 6.3 — Test the USDT payment flow end-to-end
+  → In the app, choose "Pay with USDT", copy the wallet address shown,
+    and submit a test transaction hash
+  → In /admin → USDT Payments, approve the submission
+  → Confirm a license key is auto-issued and the app unlocks Pro
+
+STEP 6.4 — Confirm no Microsoft sign-in is required anywhere
+  → The app should never prompt for a Microsoft account. If it does,
+    you're running an outdated build — redeploy from the current codebase.
 
 --------------------------------------------------------------------------------
 PART 7 — GOING LIVE CHECKLIST
 --------------------------------------------------------------------------------
 
-Before flipping the switch to public:
-
-  [ ] Azure AD App Registration created with correct redirect URIs
-  [ ] Client secret created and saved (it won't show again!)
-  [ ] API permissions granted: openid, profile, email, User.Read
-  [ ] Application ID URI configured for Office SSO
-  [ ] manifest.xml updated: client ID, domain, SourceLocation
-  [ ] Backend deployed on Render with all env vars set
-  [ ] Frontend deployed on Render with all VITE_ env vars set
-  [ ] /api/saas/status returns {"configured": true}
-  [ ] Sign-in flow tested end-to-end in the browser
-  [ ] AppSource SaaS offer created with correct landing page and webhook URLs
-  [ ] Office Add-in listing created with manifest.xml uploaded
-  [ ] All four pricing plans created (monthly, quarterly, biannual, annual)
-  [ ] Plan IDs match server/data/settings.json exactly
-  [ ] Offer listing copy filled in (see APPSOURCE_STORE_LISTING.txt)
-  [ ] Screenshots added (minimum 3, see APPSOURCE_STORE_LISTING.txt)
-  [ ] Logos uploaded in all required sizes
-  [ ] Privacy policy page live at /privacy
-  [ ] EULA page live at /eula
-  [ ] Support page live at /support
-  [ ] Test subscription completed successfully end-to-end
-  [ ] Webhook receiving events (check Render logs)
-  [ ] ADMIN_PASSWORD set and /admin panel secured
-  [ ] Custom domain configured (optional but recommended)
-  [ ] VITE_APPSOURCE_URL updated with your live offer URL
-
---------------------------------------------------------------------------------
-PART 8 — DOMAIN SETUP (OPTIONAL BUT RECOMMENDED)
---------------------------------------------------------------------------------
-
-Using a custom domain (e.g., finanalyzer.io) instead of .onrender.com makes
-your app look more professional and is required for some AppSource categories.
-
-STEP 8.1 — Buy a domain
-  → Use any domain registrar: Namecheap, Cloudflare, Google Domains
-  → Cloudflare Registrar offers domains at cost with free DNS hosting
-
-STEP 8.2 — Configure Render with your custom domain
-  → In Render → your web service → "Settings" → "Custom Domains"
-  → Click "Add custom domain"
-  → Enter: api.yourdomain.com (for the backend)
-  → Render provides a DNS record to add at your registrar
-  → Do the same for the frontend: app.yourdomain.com (or just yourdomain.com)
-
-STEP 8.3 — Update everything with your new domain
-  → Azure App Registration → Authentication → add the new redirect URIs:
-        https://app.yourdomain.com
-        https://app.yourdomain.com/landing
-  → Partner Center → Technical configuration → update:
-        Landing page URL: https://app.yourdomain.com/landing
-        Webhook URL:      https://api.yourdomain.com/api/saas/webhook
-  → manifest.xml → update SourceLocation, IconUrl, HighResolutionIconUrl,
-    and SupportUrl to use your new domain
-  → VITE_API_URL → update to https://api.yourdomain.com
-  → Redeploy frontend on Render after changing VITE_API_URL
-
---------------------------------------------------------------------------------
-PART 9 — MAINTENANCE AND OPERATIONS
---------------------------------------------------------------------------------
-
-CLIENT SECRET ROTATION (Required every 24 months)
-  → Azure Portal → App registrations → your app → Certificates & secrets
-  → Create a new secret BEFORE the old one expires
-  → Update AZURE_CLIENT_SECRET in Render environment variables
-  → Render will automatically redeploy with the new secret
-  → Delete the old secret after confirming the new one works
-
-VIEWING SUBSCRIPTIONS
-  → GET https://financial-data-analyzer-api.onrender.com/api/saas/subscriptions
-  → Add header: X-Admin-Password: [your ADMIN_PASSWORD]
-  → Returns a JSON array of all subscription records
-
-EXPORTING DATA (full backup)
-  → GET https://financial-data-analyzer-api.onrender.com/api/admin/export
-  → Add header: X-Admin-Password: [your ADMIN_PASSWORD]
-  → Downloads a full JSON backup of settings, subscriptions, and tickets
-
-UPDATING ADD-IN SETTINGS
-  → The admin panel at /admin lets you change the add-in name, tagline,
-    colors, notification settings, and pricing plan labels
-  → Changes take effect immediately for new users; existing users see them
-    on next page load
-
-VIEWING LOGS
-  → In Render → your web service → "Logs"
-  → Look for lines starting with [saas] for subscription events
-  → Look for ✅ for successful activations
-  → Look for ⚠️ for warnings
-
-MONITORING SUBSCRIPTION HEALTH
-  → Microsoft sends webhook events for all lifecycle changes
-  → If your webhook is down when an event fires, Microsoft will retry
-  → Microsoft retries for up to 10 days before giving up
-  → Check Render logs daily during initial launch
-
---------------------------------------------------------------------------------
-PART 10 — TROUBLESHOOTING COMMON ISSUES
---------------------------------------------------------------------------------
-
-PROBLEM: "Azure credentials not configured" in server logs
-SOLUTION: Check that AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET
-          are all set as environment variables in your Render backend service.
-          Go to Render → financial-data-analyzer-api → Environment → verify.
-
-PROBLEM: Sign-in popup appears but immediately closes with an error
-SOLUTION: Check that the redirect URI is correctly added in Azure:
-          Azure Portal → App registrations → your app → Authentication
-          → Under "Single-page application", the URL where the popup
-            redirects must exactly match your deployed URL (no trailing slash).
-
-PROBLEM: "No active subscription" after signing in, but I just subscribed
-SOLUTION A: The webhook may not have fired yet. Wait 5 minutes and try again.
-SOLUTION B: Check Render logs for "[saas] webhook" entries. If none, verify
-            that your webhook URL in Partner Center is correct and the server
-            is reachable from the internet.
-SOLUTION C: The resolve/activate flow may not have completed. Try going back
-            through the landing page (/landing?token=...) again.
-
-PROBLEM: The landing page shows an error "No marketplace token found"
-SOLUTION: The landing page should only be accessed via the AppSource redirect.
-          Test it through Partner Center's preview flow, not by opening
-          /landing directly in the browser.
-
-PROBLEM: AppSource submission rejected with "cannot verify landing page"
-SOLUTION: Your landing page must be publicly accessible (not behind a login
-          wall) and must respond to a GET request without the token parameter
-          with a valid HTML page (not a 404 or error). The /landing route in
-          this app handles this correctly, but ensure your Render service is
-          not sleeping (upgrade from Free to Starter plan).
-
-PROBLEM: Office SSO (getAccessToken) fails in Excel
-SOLUTION: Ensure the WebApplicationInfo section in manifest.xml has the
-          correct client ID and Application ID URI. The URI must match exactly
-          what you set in Azure → "Expose an API". Also confirm you added
-          Office's client ID (ea5a67f6-b6f3-4338-b240-c655ddc3cc8e) as an
-          authorized client application.
-
-PROBLEM: "MSAL popup was blocked"
-SOLUTION: MSAL uses popup windows for sign-in. Some browsers block popups by
-          default. When the add-in runs inside Excel (Office client), popups
-          are generally allowed. In the browser preview, the user may need to
-          allow popups for your domain.
-
-PROBLEM: Data (subscriptions, settings, tickets) lost after Render restart
-SOLUTION: Render's free tier has an ephemeral file system — files written
-          to disk are lost when the service restarts. The server/data/*.json
-          files are re-seeded with defaults on restart, so subscriptions are
-          lost. Fix: upgrade to a paid Render plan with persistent disk, OR
-          migrate to PostgreSQL (see Part 11). This is the most important
-          production concern before going live.
-
-PROBLEM: Webhook fires but subscription is not recorded
-SOLUTION: Check that the server/data/ directory is writable. In Render,
-          check logs for "seedSettings failed" or "seedSubscriptions failed"
-          at startup. If the data directory cannot be written, all events
-          are accepted by the webhook but not persisted.
-
-PROBLEM: Plan ID mismatch — webhook received but plan not found in settings
-SOLUTION: The plan ID in the webhook event must match a plan ID in
-          server/data/settings.json AND in your Partner Center plan
-          definitions. Valid IDs: monthly, quarterly, biannual, annual.
-          Double-check your Partner Center plan IDs match exactly.
-
---------------------------------------------------------------------------------
-PART 11 — PRODUCTION DATABASE RECOMMENDATION
---------------------------------------------------------------------------------
-
-The current implementation stores subscriptions, settings, and tickets in
-JSON files on disk (server/data/*.json). This is fine for development but
-risky in production because:
-  - Render's free tier loses all disk data on every restart
-  - Concurrent webhook events could cause write conflicts
-  - No audit trail or query capability for subscription history
-  - Scaling beyond one instance requires shared storage
-
-For production, migrate to PostgreSQL:
-
-  1. In Render, create a new "PostgreSQL" database ($7/month for Starter)
-     → Render Dashboard → New → PostgreSQL
-     → Copy the "Internal Database URL" — this is your DATABASE_URL
-
-  2. Add DATABASE_URL to your backend environment variables in Render
-
-  3. Install the pg package:
-        cd server && npm install pg
-
-  4. Create the required tables:
-
-        CREATE TABLE settings (
-          key VARCHAR PRIMARY KEY,
-          value JSONB NOT NULL,
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        CREATE TABLE subscriptions (
-          subscription_id VARCHAR PRIMARY KEY,
-          plan_id VARCHAR,
-          quantity INTEGER DEFAULT 1,
-          status VARCHAR NOT NULL,
-          beneficiary_oid VARCHAR,
-          purchaser_oid VARCHAR,
-          ms_graph_user_id VARCHAR,
-          offer_id VARCHAR,
-          license_key VARCHAR,
-          expires_at TIMESTAMPTZ,
-          activated_at TIMESTAMPTZ,
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        CREATE TABLE tickets (
-          id VARCHAR PRIMARY KEY,
-          name VARCHAR,
-          email VARCHAR,
-          license_key VARCHAR,
-          category VARCHAR,
-          subject VARCHAR,
-          message TEXT,
-          status VARCHAR DEFAULT 'open',
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-  5. Replace the JSON file read/write calls in:
-        server/routes/saas.js      — subscription CRUD
-        server/routes/settings.js  — settings read/write
-        server/routes/tickets.js   — ticket management
-        server/lib/seed.js         — startup seeding
-
-     Use parameterized queries with the `pg` package to prevent SQL injection.
-
-  6. Test the full subscription flow after migration before going live.
-
---------------------------------------------------------------------------------
-SUPPORT AND RESOURCES
---------------------------------------------------------------------------------
-
-Microsoft SaaS Fulfillment API documentation:
-  https://learn.microsoft.com/en-us/azure/marketplace/partner-center-portal/pc-saas-fulfillment-life-cycle
-
-Microsoft Partner Center help:
-  https://learn.microsoft.com/en-us/azure/marketplace/marketplace-publishing-guide
-
-Azure AD MSAL documentation:
-  https://learn.microsoft.com/en-us/azure/active-directory/develop/msal-overview
-
-Render deployment documentation:
-  https://render.com/docs
-
-Office Add-ins submission guide:
-  https://learn.microsoft.com/en-us/office/dev/add-ins/publish/publish
-
-Store listing copy (descriptions, keywords, pricing):
-  APPSOURCE_STORE_LISTING.txt (in this project root)
+  [ ] ADMIN_PASSWORD and VITE_ADMIN_PASSWORD are set to strong, matching
+      values (not left blank)
+  [ ] manifest.xml has your real domain and a freshly generated GUID
+  [ ] USDT wallet address is set in Billing Settings
+  [ ] Pricing plans reflect what you actually want to charge
+  [ ] (If using SMTP) notification emails have been test-sent successfully
+  [ ] The add-in has been sideloaded and tested by at least one real user
+      before organization-wide Centralized Deployment
+  [ ] server/data/*.json files are backed up regularly (this app has no
+      database — all licenses, payments, and settings live in these files)
 
 ================================================================================
 END OF DEPLOYMENT GUIDE

@@ -1,64 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<OfficeApp
-    xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:type="TaskPaneApp">
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:type="MailApp">
 
-  <Id>977e359e-268e-40f4-8e69-eb4d827c2806</Id>
-
-  <Version>2.0.0.0</Version>
-
-  <ProviderName>Financial Data Analyzer</ProviderName>
-
+  <Id>00000000-0000-0000-0000-000000000001</Id>
+  <Version>1.0.0</Version>
+  <ProviderName>MailVault</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="MailVault Pro for Outlook" />
+  <Description DefaultValue="Enterprise email backup, restore and analytics — right inside Outlook. Free to install; unlock Pro with a USDT payment or license key." />
+  <IconUrl DefaultValue="https://YOUR_DOMAIN/icon-80.png" />
+  <HighResolutionIconUrl DefaultValue="https://YOUR_DOMAIN/icon-80.png" />
 
-  <DisplayName DefaultValue="Financial Data Analyzer"/>
-
-  <Description DefaultValue="Analyze financial data, categorize transactions, track budgets, and export reports. Free &amp; Pro plans available — get it on Microsoft AppSource."/>
-
-  <IconUrl DefaultValue="https://YOUR_FRONTEND_URL/icon-32.png"/>
-
-  <HighResolutionIconUrl DefaultValue="https://YOUR_FRONTEND_URL/icon-80.png"/>
-
-  <SupportUrl DefaultValue="https://YOUR_FRONTEND_URL/support"/>
-
-  <Hosts>
-    <Host Name="Workbook"/>
-  </Hosts>
+  <SupportUrl DefaultValue="https://YOUR_DOMAIN/support" />
+  <AppDomains>
+    <AppDomain>YOUR_DOMAIN</AppDomain>
+  </AppDomains>
 
   <Requirements>
-    <Sets DefaultMinVersion="1.1">
-      <Set Name="ExcelApi" MinVersion="1.1"/>
-    </Sets>
+    <Sets><Set Name="Mailbox" MinVersion="1.1" /></Sets>
   </Requirements>
 
-  <DefaultSettings>
-    <SourceLocation DefaultValue="https://YOUR_FRONTEND_URL"/>
-  </DefaultSettings>
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://YOUR_DOMAIN/" />
+        <RequestedHeight>550</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
 
-  <Permissions>ReadWriteDocument</Permissions>
-
-  <!--
-    WebApplicationInfo enables Office SSO (single sign-on) so users can
-    sign in seamlessly without a popup. To activate:
-
-    1. Register an Azure AD app at https://portal.azure.com → Azure Active Directory → App registrations
-    2. Set the Application ID URI to:  api://<YOUR_DOMAIN>/<YOUR_CLIENT_ID>
-    3. Add the delegated permissions: openid, profile, email, User.Read
-    4. Replace the placeholder values below with your actual Client ID and domain
-    5. Set VITE_AZURE_CLIENT_ID and VITE_AZURE_TENANT_ID in your environment
-
-    Until configured, the add-in uses MSAL popup auth as a fallback.
-  -->
-  <WebApplicationInfo>
-    <Id>YOUR_AZURE_CLIENT_ID</Id>
-    <Resource>api://YOUR_DOMAIN/YOUR_AZURE_CLIENT_ID</Resource>
-    <Scopes>
-      <Scope>openid</Scope>
-      <Scope>profile</Scope>
-      <Scope>email</Scope>
-      <Scope>User.Read</Scope>
-    </Scopes>
-  </WebApplicationInfo>
-
+  <Permissions>ReadWriteMailbox</Permissions>
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read" />
+  </Rule>
 </OfficeApp>
