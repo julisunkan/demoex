@@ -46,8 +46,10 @@ export function setAdminPassword(pass: string): void {
   try { sessionStorage.setItem(ADMIN_PASSWORD_KEY, pass); } catch { /* no-op */ }
 }
 
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+
 async function adminFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",

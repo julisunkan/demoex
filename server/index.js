@@ -13,8 +13,8 @@ const PORT = Number(process.env.PORT || process.env.API_PORT || 3001);
 const HOST = "0.0.0.0";
 const app  = express();
 
-const CORS_ORIGIN = process.env.NODE_ENV === "production" && process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL
+const CORS_ORIGIN = process.env.NODE_ENV === "production"
+  ? (process.env.FRONTEND_URL ?? false)   // deny cross-origin in prod if URL not set
   : true;
 
 app.use(cors({ origin: CORS_ORIGIN }));

@@ -42,6 +42,10 @@ export default defineConfig(async () => ({
     fs: {
       strict: true,
     },
+    watch: {
+      // Prevent Replit workflow log files from triggering endless HMR reloads.
+      ignored: ["**/.local/**", "**/node_modules/**"],
+    },
     proxy: {
       "/api": {
         target: "http://localhost:3001",

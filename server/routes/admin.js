@@ -6,8 +6,15 @@ const router = Router();
 
 function requireAdmin(req, res, next) {
   const adminPass = process.env.ADMIN_PASSWORD;
-  if (!adminPass) { next(); return; }
-  const auth = req.headers["x-admin-password"] ?? req.query.adminPassword;
+  if (!adminPass) {
+    // In production, refuse access rather than exposing everything.
+    if (process.env.NODE_ENV === "production") {
+      return res.status(503).json({ error: "Admin portal not configured (ADMIN_PASSWORD missing)" });
+    }
+    next();
+    return;
+  }
+  const auth = req.headers["x-admin-password"];
   if (auth !== adminPass) return res.status(401).json({ error: "Unauthorized" });
   next();
 }
