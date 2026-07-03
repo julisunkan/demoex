@@ -35,11 +35,44 @@ function generateLicenseKey() {
   return `MVP-${crypto.randomBytes(12).toString("hex").toUpperCase()}`;
 }
 
-router.get("/summary",       requireAdmin, (_req, res) => res.json({ organizations: 0, licensedUsers: 0, backupsToday: 0, failedJobs: 0, totalStorage: "0 GB", activeJobs: 0 }));
+router.get("/summary", requireAdmin, async (_req, res) => {
+  try {
+    const [licenses, jobs, backups] = await Promise.all([
+      readJson("licenses.json", []),
+      readJson("jobs.json",     []),
+      readJson("backups.json",  []),
+    ]);
+    const todayStr    = new Date().toDateString();
+    const totalBytes  = backups.reduce((s, b) => s + (b.sizeBytes ?? 0), 0);
+    const totalStorage = totalBytes >= 1e9
+      ? `${(totalBytes / 1e9).toFixed(1)} GB`
+      : `${Math.round(totalBytes / 1e6)} MB`;
+    res.json({
+      organizations:  0,
+      licensedUsers:  licenses.filter(l => !l.revoked && l.activatedAt).length,
+      backupsToday:   jobs.filter(j => j.type === "backup" && j.status === "completed" &&
+                        new Date(j.startedAt).toDateString() === todayStr).length,
+      failedJobs:     jobs.filter(j => j.status === "failed").length,
+      totalStorage,
+      activeJobs:     jobs.filter(j => j.status === "running").length,
+    });
+  } catch (err) {
+    console.error("[admin] summary error:", err.message);
+    res.status(500).json({ error: "Failed to load summary" });
+  }
+});
 router.get("/organizations", requireAdmin, (_req, res) => res.json({ items: [], total: 0 }));
 router.get("/users",         requireAdmin, (_req, res) => res.json({ items: [], total: 0 }));
-router.get("/jobs",          requireAdmin, (_req, res) => res.json({ items: [], total: 0 }));
-router.get("/audit-logs",    requireAdmin, (_req, res) => res.json({ items: [], total: 0 }));
+router.get("/jobs", requireAdmin, async (_req, res) => {
+  try {
+    const jobs = await readJson("jobs.json", []);
+    res.json({ items: jobs.slice().reverse(), total: jobs.length });
+  } catch (err) {
+    console.error("[admin] jobs error:", err.message);
+    res.status(500).json({ error: "Failed to load jobs" });
+  }
+});
+router.get("/audit-logs", requireAdmin, (_req, res) => res.json({ items: [], total: 0 }));
 
 /**
  * Site settings — appearance, USDT payment config, plans, notifications.
@@ -64,12 +97,25 @@ router.put("/settings", requireAdmin, async (req, res) => {
   res.json(updated);
 });
 
-// Keep POST alias for backwards compatibility.
+// Keep POST alias for backwards compatibility — use same deep merge as PUT.
 router.post("/settings", requireAdmin, async (req, res) => {
-  const current = await readJson("settings.json", DEFAULT_SETTINGS);
-  const updated = { ...current, ...req.body };
-  await writeJson("settings.json", updated);
-  res.json({ ok: true, settings: updated });
+  try {
+    const current = await readJson("settings.json", DEFAULT_SETTINGS);
+    const updated = {
+      ...current,
+      ...req.body,
+      appearance:    { ...current.appearance,    ...(req.body?.appearance    ?? {}) },
+      payment:       { ...current.payment,       ...(req.body?.payment       ?? {}) },
+      features:      { ...current.features,      ...(req.body?.features      ?? {}) },
+      notifications: { ...current.notifications, ...(req.body?.notifications ?? {}) },
+      plans:         req.body?.plans ?? current.plans,
+    };
+    await writeJson("settings.json", updated);
+    res.json({ ok: true, settings: updated });
+  } catch (err) {
+    console.error("[admin] POST /settings error:", err.message);
+    res.status(500).json({ error: "Failed to save settings" });
+  }
 });
 
 /**

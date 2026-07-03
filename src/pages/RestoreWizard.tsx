@@ -65,24 +65,56 @@ export default function RestoreWizard() {
     }
     setRunning(true); setProgress(0);
 
+    let jobId: string;
     try {
-      await apiRequest("POST", "/api/restore/start", {
+      const startRes = await apiRequest("POST", "/api/restore/start", {
         backupId:    selected,
         scope,
         conflict,
         destination: restoreDest,
       });
+      const body = await startRes.json();
+      if (!startRes.ok) {
+        throw new Error(body?.error ?? `Server error (${startRes.status})`);
+      }
+      jobId = body.jobId;
     } catch (err: unknown) {
       toast({ title: "Restore failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
       setRunning(false);
       return;
     }
 
-    const iv = setInterval(() => setProgress(p => Math.min(p + Math.random() * 10, 99)), 500);
-    await new Promise(r => setTimeout(r, 5000));
+    // Animate a smooth progress bar while polling the real job status.
+    const iv = setInterval(() => setProgress(p => (p >= 85 ? 85 : p + Math.random() * 5)), 600);
+
+    let finalStatus = "unknown";
+    const MAX_ATTEMPTS = 180; // 6 min
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise(r => setTimeout(r, 2000));
+      try {
+        const statusRes = await apiRequest("GET", `/api/restore/status/${jobId}`);
+        const body = await statusRes.json();
+        const { status } = body;
+        if (status === "completed" || status === "failed") {
+          finalStatus = status;
+          break;
+        }
+      } catch { /* transient network error — keep polling */ }
+    }
+
     clearInterval(iv);
+
+    if (finalStatus !== "completed") {
+      setRunning(false);
+      const msg = finalStatus === "failed"
+        ? "The restore job failed on the server."
+        : "Restore timed out — the job may still be running in the background.";
+      toast({ title: "Restore did not complete", description: msg, variant: "destructive" });
+      return;
+    }
+
     setProgress(100);
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 400));
     setRunning(false);
     setDone(true);
     toast({ title: "✅ Restore complete", description: "Emails restored to your mailbox." });

@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { readJson, writeJson } from "../lib/store.js";
+
 const router = Router();
 
 const DEFAULT_SETTINGS = {
@@ -17,16 +19,42 @@ const DEFAULT_SETTINGS = {
     maxRetries:      3,
   },
   storage: {
-    defaultProvider: "local",
-    retentionDays:   365,
+    defaultProvider:    "local",
+    retentionDays:      365,
     compressionEnabled: true,
   },
 };
 
-let currentSettings = { ...DEFAULT_SETTINGS };
+router.get("/", async (_req, res) => {
+  try {
+    const settings = await readJson("user-settings.json", DEFAULT_SETTINGS);
+    res.json(settings);
+  } catch (err) {
+    console.error("[settings] GET error:", err.message);
+    res.status(500).json({ error: "Failed to load settings" });
+  }
+});
 
-router.get("/",    (_req, res) => res.json(currentSettings));
-router.put("/",    (req, res)  => { currentSettings = { ...currentSettings, ...req.body }; res.json({ ok: true, settings: currentSettings }); });
-router.delete("/", (_req, res) => { currentSettings = { ...DEFAULT_SETTINGS }; res.json({ ok: true }); });
+router.put("/", async (req, res) => {
+  try {
+    const current = await readJson("user-settings.json", DEFAULT_SETTINGS);
+    const updated  = { ...current, ...req.body };
+    await writeJson("user-settings.json", updated);
+    res.json({ ok: true, settings: updated });
+  } catch (err) {
+    console.error("[settings] PUT error:", err.message);
+    res.status(500).json({ error: "Failed to save settings" });
+  }
+});
+
+router.delete("/", async (_req, res) => {
+  try {
+    await writeJson("user-settings.json", DEFAULT_SETTINGS);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[settings] DELETE error:", err.message);
+    res.status(500).json({ error: "Failed to reset settings" });
+  }
+});
 
 export default router;

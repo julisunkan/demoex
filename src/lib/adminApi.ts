@@ -61,9 +61,25 @@ async function adminFetch<T>(path: string, options: RequestInit = {}): Promise<T
     const body = await res.json().catch(() => null);
     throw new Error(body?.error || `Request failed (${res.status})`);
   }
-  return res.json();
+  try {
+    return await res.json() as T;
+  } catch {
+    throw new Error("Server returned an empty response. Please try again.");
+  }
 }
 
+export interface AdminSummary {
+  organizations: number; licensedUsers: number; backupsToday: number;
+  failedJobs: number; totalStorage: string; activeJobs: number;
+}
+
+export interface JobRecord {
+  id: string; type: string; status: string; label: string;
+  startedAt: string; duration: number | null; size: string | null;
+}
+
+export const fetchSummary = () => adminFetch<AdminSummary>("/api/admin/summary");
+export const fetchJobs    = () => adminFetch<{ items: JobRecord[]; total: number }>("/api/admin/jobs");
 export const fetchSettings = () => adminFetch<SiteSettings>("/api/admin/settings");
 export const saveSettings  = (settings: Partial<SiteSettings>) =>
   adminFetch<SiteSettings>("/api/admin/settings", { method: "PUT", body: JSON.stringify(settings) });

@@ -6,5 +6,16 @@
     "issuedAt": "1970-01-01T00:00:00.000Z",
     "email": null,
     "txHash": null
+  },
+  {
+    "licenseKey": "MVP-56AB4076EE7CF7D73934B0C6",
+    "planId": "monthly",
+    "expiresAt": null,
+    "issuedAt": "2026-07-03T22:14:15.236Z",
+    "activatedAt": null,
+    "revoked": false,
+    "email": "test@example.com",
+    "note": null,
+    "txHash": null
   }
 ]

@@ -12,9 +12,11 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import {
   getAdminPassword, setAdminPassword,
+  fetchSummary, fetchJobs,
   fetchSettings, saveSettings, type SiteSettings, type Plan,
   fetchLicenses, createLicenses, revokeLicense, unrevokeLicense, deleteLicense,
   fetchPayments, approvePayment, rejectPayment,
+  type AdminSummary, type JobRecord,
 } from "@/lib/adminApi";
 
 type AdminSection = "dashboard" | "organizations" | "users" | "licenses" | "payments" | "billing-settings" | "jobs" | "logs";
@@ -147,38 +149,7 @@ export default function AdminPage() {
 
       {/* Main */}
       <main className="flex-1 overflow-auto">
-        {section === "dashboard" && (
-          <div className="p-6 space-y-6">
-            <h1 className="text-xl font-black">Dashboard</h1>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { label: "Organizations",  value: "0", color: "stat-blue"   },
-                { label: "Licensed Users", value: "0", color: "stat-purple" },
-                { label: "Backups Today",  value: "0", color: "stat-green"  },
-                { label: "Failed Jobs",    value: "0", color: "stat-red"    },
-              ].map(({ label, value, color }) => (
-                <div key={label} className={`rounded-2xl p-4 ${color}`}>
-                  <p className="text-2xl font-black">{value}</p>
-                  <p className="text-xs opacity-75 mt-1">{label}</p>
-                </div>
-              ))}
-            </div>
-            <div className="bg-white border border-border rounded-2xl p-4">
-              <p className="text-sm font-black mb-4">Backups This Week</p>
-              <div className="h-[180px] flex items-center justify-center text-xs text-muted-foreground">No backup data yet</div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white border border-border rounded-2xl p-4 space-y-3">
-                <p className="text-sm font-black">System Health</p>
-                <p className="text-xs text-muted-foreground">No data available</p>
-              </div>
-              <div className="bg-white border border-border rounded-2xl p-4">
-                <p className="text-sm font-black mb-3">Recent Jobs</p>
-                <p className="text-xs text-muted-foreground">No jobs yet</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {section === "dashboard" && <DashboardPanel />}
 
         {section === "organizations" && (
           <div className="p-6 space-y-4">
@@ -226,26 +197,7 @@ export default function AdminPage() {
         {section === "payments" && <PaymentsPanel toast={toast} />}
         {section === "billing-settings" && <BillingSettingsPanel toast={toast} />}
 
-        {section === "jobs" && (
-          <div className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-black">Job Monitor</h1>
-              <button className="flex items-center gap-1.5 text-xs font-bold bg-white border border-border px-3 py-2 rounded-lg hover:bg-muted">
-                <Download className="w-3.5 h-3.5" /> Export
-              </button>
-            </div>
-            <div className="bg-white border border-border rounded-2xl overflow-hidden">
-              <table className="w-full text-xs">
-                <thead className="bg-muted text-muted-foreground">
-                  <tr>{["Type","User","Status","Started","Duration","Size"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground text-xs">No jobs yet</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {section === "jobs" && <JobsPanel />}
 
         {section === "logs" && (
           <div className="p-6 space-y-4">
@@ -273,6 +225,97 @@ export default function AdminPage() {
 }
 
 type ToastFn = ReturnType<typeof useToast>["toast"];
+
+function DashboardPanel() {
+  const { data: summary, isLoading: sumLoading } =
+    useQuery<AdminSummary>({ queryKey: ["/api/admin/summary"], queryFn: fetchSummary, refetchInterval: 30_000 });
+  const { data: jobsData, isLoading: jobsLoading } =
+    useQuery<{ items: JobRecord[]; total: number }>({ queryKey: ["/api/admin/jobs"], queryFn: fetchJobs, refetchInterval: 15_000 });
+
+  const recentJobs = (jobsData?.items ?? []).slice(0, 5);
+
+  return (
+    <div className="p-6 space-y-6">
+      <h1 className="text-xl font-black">Dashboard</h1>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Licensed Users", value: sumLoading ? "…" : String(summary?.licensedUsers ?? 0), color: "stat-purple" },
+          { label: "Backups Today",  value: sumLoading ? "…" : String(summary?.backupsToday  ?? 0), color: "stat-green"  },
+          { label: "Failed Jobs",    value: sumLoading ? "…" : String(summary?.failedJobs    ?? 0), color: "stat-red"    },
+          { label: "Total Storage",  value: sumLoading ? "…" : (summary?.totalStorage ?? "0 MB"),   color: "stat-blue"   },
+        ].map(({ label, value, color }) => (
+          <div key={label} className={`rounded-2xl p-4 ${color}`}>
+            <p className="text-2xl font-black">{value}</p>
+            <p className="text-xs opacity-75 mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white border border-border rounded-2xl p-4 space-y-2">
+          <p className="text-sm font-black">System Health</p>
+          <div className="space-y-1.5 text-xs">
+            <div className="flex justify-between"><span className="text-muted-foreground">Active jobs</span><span className="font-bold">{summary?.activeJobs ?? 0}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Total storage used</span><span className="font-bold">{summary?.totalStorage ?? "0 MB"}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Backups today</span><span className="font-bold">{summary?.backupsToday ?? 0}</span></div>
+          </div>
+        </div>
+        <div className="bg-white border border-border rounded-2xl p-4">
+          <p className="text-sm font-black mb-3">Recent Jobs</p>
+          {jobsLoading ? (
+            <p className="text-xs text-muted-foreground">Loading…</p>
+          ) : recentJobs.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No jobs yet</p>
+          ) : (
+            <div className="space-y-1.5">
+              {recentJobs.map(j => (
+                <div key={j.id} className="flex items-center justify-between text-xs">
+                  <span className="capitalize text-muted-foreground">{j.type}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_CLS[j.status] ?? ""}`}>{j.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function JobsPanel() {
+  const { data, isLoading } = useQuery<{ items: JobRecord[]; total: number }>({
+    queryKey: ["/api/admin/jobs"], queryFn: fetchJobs, refetchInterval: 10_000,
+  });
+
+  return (
+    <div className="p-6 space-y-4">
+      <h1 className="text-xl font-black">Job Monitor</h1>
+      <div className="bg-white border border-border rounded-2xl overflow-hidden">
+        <table className="w-full text-xs">
+          <thead className="bg-muted text-muted-foreground">
+            <tr>{["Type","Status","Started","Duration","Size"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {isLoading ? (
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>
+            ) : (data?.items ?? []).length === 0 ? (
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">No jobs yet</td></tr>
+            ) : (data?.items ?? []).map(j => (
+              <tr key={j.id} className="hover:bg-muted/50">
+                <td className="px-4 py-3 capitalize">{j.type}</td>
+                <td className="px-4 py-3">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLS[j.status] ?? ""}`}>{j.status}</span>
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{j.startedAt}</td>
+                <td className="px-4 py-3 text-muted-foreground">{j.duration != null ? `${j.duration}s` : "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">{j.size ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function LicensesPanel({ toast }: { toast: ToastFn }) {
   const qc = useQueryClient();
@@ -462,12 +505,16 @@ function BillingSettingsPanel({ toast }: { toast: ToastFn }) {
   const [plans, setPlans]                 = useState<Plan[]>([]);
   const [hydrated, setHydrated]           = useState(false);
 
-  if (data && !hydrated) {
-    setWalletAddress(data.payment.walletAddress);
-    setNetwork(data.payment.network);
-    setPlans(data.plans);
-    setHydrated(true);
-  }
+  // Hydrate local form state once server data arrives — must be in useEffect,
+  // not in the render body, to avoid React's "state update during render" error.
+  useEffect(() => {
+    if (data && !hydrated) {
+      setWalletAddress(data.payment.walletAddress);
+      setNetwork(data.payment.network);
+      setPlans(data.plans);
+      setHydrated(true);
+    }
+  }, [data, hydrated]);
 
   const saveMutation = useMutation({
     mutationFn: () => saveSettings({ payment: { walletAddress, network }, plans }),

@@ -64,9 +64,10 @@ router.post("/start", async (req, res) => {
 
         while (true) {
           const oFilters = [];
-          if (filters.dateFrom) oFilters.push(`receivedDateTime ge ${new Date(filters.dateFrom).toISOString()}`);
-          if (filters.dateTo)   oFilters.push(`receivedDateTime le ${new Date(filters.dateTo).toISOString()}`);
-          if (filters.sender)   oFilters.push(`contains(from/emailAddress/address,'${filters.sender.replace(/'/g, "''")}')`);
+          if (filters.dateFrom) oFilters.push(`receivedDateTime ge ${new Date(filters.dateFrom).toISOString().replace(/\.\d{3}Z$/, "Z")}`);
+          if (filters.dateTo)   oFilters.push(`receivedDateTime le ${new Date(filters.dateTo).toISOString().replace(/\.\d{3}Z$/, "Z")}`);
+          // Note: contains() is OData v4 only; Outlook REST v2 uses v3.
+          // Sender filtering is applied in JS after the fetch (see below).
           if (filters.unreadOnly) oFilters.push("isRead eq false");
           if (filters.hasAttach)  oFilters.push("hasAttachments eq true");
 
@@ -81,8 +82,17 @@ router.post("/start", async (req, res) => {
             auth.token, auth.restUrl,
             `/v2.0/me/MailFolders/${encodeURIComponent(folder.id)}/messages?${qs}`
           );
-          const msgs = page?.value ?? [];
+          let msgs = page?.value ?? [];
           if (!msgs.length) break;
+
+          // Apply sender filter JS-side (OData v3 / Outlook REST v2 does not support contains()).
+          if (filters.sender) {
+            const s = filters.sender.toLowerCase();
+            msgs = msgs.filter(m =>
+              (m.from?.emailAddress?.address ?? "").toLowerCase().includes(s) ||
+              (m.from?.emailAddress?.name    ?? "").toLowerCase().includes(s)
+            );
+          }
 
           emails.push(...msgs);
           totalEmails    += msgs.length;

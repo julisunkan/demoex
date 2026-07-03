@@ -1,2 +1,4 @@
 - [USDT + license-key billing](ms-appsource-integration.md) — replaced AppSource/MSAL; sweep static/doc pages too, not just app flow, when removing a billing integration
 - [Outlook REST API integration](outlook-rest-api-integration.md) — restUrl ends with /api; paths must be /v2.0/me/..., not /api/v2.0/...; always SSRF-validate restUrl before fetch
+- [OData v3 filter limits](odata-v3-limits.md) — Outlook REST v2.0 uses OData v3: no contains(), no $orderby with $filter; apply sender filter and sorting in JS after fetch; strip ms from ISO dates in filters
+- [MailVault route audit fixes](mailvault-route-audit.md) — summary of all bugs found and fixed in the full route/code audit pass

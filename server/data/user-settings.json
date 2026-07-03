@@ -1,0 +1,21 @@
+{
+  "notifications": {
+    "backupCompleted": true,
+    "backupFailed": true,
+    "storageFull": true,
+    "licenseExpiring": true,
+    "restoreCompleted": false
+  },
+  "scheduler": {
+    "defaultSchedule": "daily",
+    "defaultTime": "02:00",
+    "timezone": "UTC",
+    "retryFailedJobs": true,
+    "maxRetries": 3
+  },
+  "storage": {
+    "defaultProvider": "local",
+    "retentionDays": 365,
+    "compressionEnabled": true
+  }
+}
