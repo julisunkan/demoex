@@ -1,0 +1,802 @@
+# Replit AI Agent Prompt – Build MailVault Pro for Outlook
+
+## Project Overview
+
+Build a production-ready commercial Outlook Add-in named **MailVault Pro for Outlook**.
+
+MailVault Pro is a Microsoft 365 SaaS application that enables Outlook users and organizations to securely:
+
+- Backup Outlook emails
+- Restore backed-up emails
+- Perform selective backups
+- Schedule automatic backups
+- Analyze mailbox storage
+- Mass delete emails safely
+- Manage backup history
+- Encrypt backups
+- Support organizations with multiple users
+- License the application using Microsoft Marketplace SaaS (AppSource)
+
+The application must work with:
+
+- Outlook Desktop
+- Outlook on the Web
+- Outlook for Microsoft 365
+
+Do not use any third-party payment providers such as Stripe, PayPal, Paddle, LemonSqueezy, crypto, or similar. Subscription licensing must rely exclusively on Microsoft Marketplace SaaS APIs.
+
+---
+
+# Technology Stack
+
+## Frontend (Outlook Add-in)
+
+- React 19
+- TypeScript
+- Vite
+- Office.js
+- Fluent UI v9
+- React Router
+- TanStack React Query
+- Zustand
+- React Hook Form
+- Zod
+- Axios
+
+## Backend
+
+- Python 3.12
+- Flask
+- SQLAlchemy
+- Alembic
+- SQLite (Development)
+- PostgreSQL (Production)
+- Redis
+- Celery
+- Microsoft Graph SDK
+- Microsoft Identity Platform
+- JWT Authentication
+- OpenAPI (Swagger)
+- Gunicorn
+
+## Storage
+
+Support the following providers through a pluggable adapter architecture:
+
+- Local Storage
+- Azure Blob Storage
+- OneDrive
+- Amazon S3
+- Google Drive
+- Dropbox
+
+---
+
+# Project Structure
+
+mailvault-pro/
+
+├── outlook-addin/
+│   ├── src/
+│   ├── components/
+│   ├── pages/
+│   ├── hooks/
+│   ├── services/
+│   ├── state/
+│   ├── utils/
+│   ├── assets/
+│   ├── manifest.xml
+│   └── vite.config.ts
+│
+├── backend/
+│   ├── app/
+│   │   ├── auth/
+│   │   ├── graph/
+│   │   ├── backup/
+│   │   ├── restore/
+│   │   ├── cleanup/
+│   │   ├── analytics/
+│   │   ├── marketplace/
+│   │   ├── organizations/
+│   │   ├── storage/
+│   │   ├── admin/
+│   │   ├── notifications/
+│   │   ├── models/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── middleware/
+│   │   ├── tasks/
+│   │   └── utils/
+│   │
+│   ├── migrations/
+│   ├── tests/
+│   ├── requirements.txt
+│   └── run.py
+│
+├── admin-portal/
+│
+├── docs/
+│
+├── docker/
+│
+├── docker-compose.yml
+│
+└── README.md
+
+---
+
+# Authentication
+
+Implement Microsoft Identity Platform authentication.
+
+Support:
+
+- Microsoft Personal Accounts
+- Microsoft 365 Accounts
+- Microsoft Entra ID
+
+Use OAuth2 Authorization Code Flow with PKCE.
+
+Automatically refresh expired tokens.
+
+Store:
+
+- Microsoft User ID
+- Tenant ID
+- Access Token
+- Refresh Token
+- Token Expiration
+
+---
+
+# Microsoft Graph Integration
+
+Use Microsoft Graph API exclusively.
+
+Implement:
+
+- Read emails
+- Read folders
+- Read attachments
+- Search mailbox
+- Delta Query synchronization
+- Create folders
+- Move emails
+- Delete emails
+- Permanent delete
+- Restore emails where supported
+
+Support:
+
+- Pagination
+- Retry logic
+- Throttling handling
+- Batch requests
+
+---
+
+# Outlook Add-in
+
+Build a modern Fluent UI interface.
+
+## Dashboard
+
+Display:
+
+- Mailbox Size
+- Total Emails
+- Storage Usage
+- Last Backup
+- Next Scheduled Backup
+- Backup History
+- License Status
+- Recent Activity
+
+Quick Actions:
+
+- Backup
+- Restore
+- Cleanup
+- Analytics
+- Settings
+
+---
+
+## Backup Wizard
+
+Step 1
+
+Select folders
+
+- Inbox
+- Sent
+- Archive
+- Drafts
+- Deleted
+- Junk
+- Custom folders
+
+Step 2
+
+Backup Filters
+
+- Date Range
+- Sender
+- Recipient
+- Subject
+- Keywords
+- Categories
+- Importance
+- Read / Unread
+- Has Attachments
+- Attachment Size
+- Email Size
+
+Step 3
+
+Destination
+
+- Local
+- Azure Blob
+- OneDrive
+- Google Drive
+- Dropbox
+- Amazon S3
+
+Step 4
+
+Options
+
+- Compression
+- AES-256 Encryption
+- Password Protection
+- Incremental Backup
+- Include Attachments
+- Metadata Backup
+
+Step 5
+
+Scheduling
+
+- Manual
+- Daily
+- Weekly
+- Monthly
+
+Step 6
+
+Summary
+
+- Estimated Backup Size
+- Estimated Duration
+- Validation
+- Start Backup
+
+---
+
+# Restore Wizard
+
+Support:
+
+- Entire Backup
+- Folder Restore
+- Email Restore
+- Attachment Restore
+
+Conflict Resolution:
+
+- Skip Duplicates
+- Replace Existing
+- Keep Both
+
+Destination:
+
+- Original Folder
+- Inbox
+- Archive
+- Custom Folder
+
+---
+
+# Cleanup Wizard
+
+Delete emails using filters:
+
+- Date
+- Sender
+- Subject
+- Folder
+- Category
+- Read Status
+- Importance
+- Size
+- Attachment Size
+- Duplicate Emails
+- Newsletters
+- Promotions
+- Social
+- Spam
+- Meeting Invites
+- Cancelled Meetings
+
+Always:
+
+- Preview Results
+- Display Total Storage to Recover
+- Offer Backup Before Delete
+- Require Confirmation
+
+---
+
+# Analytics
+
+Display charts for:
+
+- Mailbox Growth
+- Largest Folders
+- Largest Senders
+- Largest Attachments
+- Storage Usage
+- Duplicate Emails
+- Monthly Activity
+- Backup History
+- Cleanup Savings
+
+Use Chart.js.
+
+---
+
+# Backup Engine
+
+Support:
+
+- Full Backup
+- Selective Backup
+- Incremental Backup
+- Scheduled Backup
+- Manual Backup
+- Resume Interrupted Backup
+- Compression
+- AES-256 Encryption
+- Backup Verification
+- SHA-256 Checksums
+- Manifest Generation
+
+Run long jobs using Celery.
+
+---
+
+# Backup Format
+
+Create ZIP archives containing:
+
+- EML Files
+- Attachments
+- Metadata.json
+- Manifest.json
+- Checksums
+- Version Information
+
+---
+
+# Restore Engine
+
+Support:
+
+- Full Restore
+- Selective Restore
+- Folder Restore
+- Attachment Restore
+- Duplicate Detection
+- Validation
+- Conflict Resolution
+
+---
+
+# Cleanup Engine
+
+Implement:
+
+- Rules Engine
+- Dry Run
+- Delete Preview
+- Delete Logs
+- Undo (where supported)
+- Scheduled Cleanup
+- Cleanup Policies
+
+---
+
+# Scheduler
+
+Support:
+
+- Daily
+- Weekly
+- Monthly
+- Custom Time
+- Time Zone
+- Retry Failed Jobs
+- Notifications
+
+---
+
+# Storage Providers
+
+Create a provider interface:
+
+StorageProvider
+
+Implement:
+
+- LocalStorageProvider
+- AzureBlobProvider
+- OneDriveProvider
+- GoogleDriveProvider
+- DropboxProvider
+- AmazonS3Provider
+
+Each provider must implement:
+
+- connect()
+- upload()
+- download()
+- delete()
+- verify()
+- list()
+
+---
+
+# Security
+
+Implement:
+
+- AES-256 Encryption
+- PBKDF2 Password Derivation
+- JWT Authentication
+- HTTPS
+- CSRF Protection
+- Rate Limiting
+- Role-Based Access Control (RBAC)
+- Audit Logging
+- Signed Backup Manifests
+- Secure Environment Variables
+
+---
+
+# Multi-Tenant Support
+
+Hierarchy:
+
+Organization
+
+↓
+
+Users
+
+↓
+
+Mailboxes
+
+↓
+
+Backups
+
+↓
+
+Policies
+
+↓
+
+Licenses
+
+↓
+
+Reports
+
+User Roles:
+
+- Owner
+- Admin
+- Manager
+- User
+- Auditor
+
+Permissions must be configurable.
+
+---
+
+# Microsoft Marketplace SaaS
+
+Implement:
+
+- Marketplace Fulfillment API
+- Subscription Activation
+- Free Trial
+- Monthly Plans
+- Annual Plans
+- Plan Upgrade
+- Plan Downgrade
+- Cancellation
+- Renewal
+- Seat Assignment
+- Seat Removal
+- Webhook Processing
+- Subscription Synchronization
+- Feature Enforcement
+
+Do NOT integrate Stripe, PayPal, Paddle, LemonSqueezy, cryptocurrency, or any external billing system.
+
+---
+
+# Admin Portal
+
+Create a separate React application.
+
+Pages:
+
+- Dashboard
+- Organizations
+- Users
+- License Management
+- Seat Assignment
+- Subscription Management
+- Backup Monitoring
+- Restore Monitoring
+- Storage Monitoring
+- Analytics
+- Audit Logs
+- Notifications
+- Feature Flags
+- System Settings
+- Support Tickets
+
+---
+
+# Notifications
+
+Support:
+
+- Email
+- In-App Notifications
+
+Events:
+
+- Backup Completed
+- Backup Failed
+- Restore Completed
+- Restore Failed
+- License Expiring
+- Storage Quota Exceeded
+
+---
+
+# Database
+
+Create SQLAlchemy models for:
+
+- Users
+- Organizations
+- Mailboxes
+- MailFolders
+- Backups
+- RestoreJobs
+- CleanupJobs
+- ScheduledJobs
+- MarketplaceSubscriptions
+- LicenseAssignments
+- MarketplaceEvents
+- AuditLogs
+- Notifications
+- StorageProviders
+- UserSettings
+- APIKeys
+- SystemSettings
+
+---
+
+# REST API
+
+Build REST APIs for:
+
+- Authentication
+- Users
+- Organizations
+- Mailboxes
+- Backup
+- Restore
+- Cleanup
+- Scheduler
+- Analytics
+- Marketplace
+- Licenses
+- Notifications
+- Admin
+- Settings
+
+Generate OpenAPI (Swagger) documentation.
+
+---
+
+# Logging
+
+Implement:
+
+- Structured Logging
+- Request Logging
+- Audit Logging
+- Graph API Logging
+- Background Job Logging
+- Exception Logging
+
+---
+
+# Error Handling
+
+Use consistent API responses.
+
+Every response should include:
+
+- status
+- message
+- error_code
+- details
+- timestamp
+
+---
+
+# Testing
+
+Implement:
+
+- Pytest
+- React Testing Library
+- Integration Tests
+- API Tests
+- Graph API Mock Tests
+- End-to-End Tests
+
+---
+
+# Docker
+
+Provide:
+
+- Dockerfiles
+- Docker Compose
+- Development Configuration
+- Production Configuration
+
+---
+
+# Deployment
+
+Support deployment to:
+
+- Azure App Service
+- Azure Container Apps
+- Azure Database for PostgreSQL
+- Azure Redis Cache
+- Azure Blob Storage
+- Azure Key Vault
+
+Generate deployment documentation.
+
+---
+
+# Documentation
+
+Generate:
+
+- README
+- Architecture Documentation
+- Database Schema Documentation
+- API Documentation
+- Deployment Guide
+- Microsoft Graph Permissions Guide
+- Microsoft Marketplace SaaS Setup Guide
+- Administrator Guide
+- User Guide
+- Developer Guide
+- Troubleshooting Guide
+
+---
+
+# Code Quality
+
+Requirements:
+
+- Follow SOLID Principles
+- Use Repository Pattern
+- Use Service Layer Pattern
+- Modular Architecture
+- Dependency Injection
+- Environment-Based Configuration
+- Reusable React Components
+- Comprehensive Validation
+- Production-Ready Code
+- Clear Comments and Documentation
+
+---
+
+# AI-Ready Architecture
+
+Design the application to support future AI capabilities without major refactoring.
+
+Future features include:
+
+- AI Email Categorization
+- Smart Cleanup Suggestions
+- Duplicate Detection using AI
+- Email Summarization
+- Natural Language Search
+- Storage Optimization
+- Compliance Recommendations
+- Organization Insights
+
+---
+
+# Development Strategy
+
+Develop in the following phases:
+
+Phase 1
+- Project Setup
+- Repository Structure
+- Environment Configuration
+
+Phase 2
+- Microsoft Authentication
+- Microsoft Graph Integration
+
+Phase 3
+- Outlook Add-in UI
+- Fluent UI Components
+
+Phase 4
+- Backup Engine
+
+Phase 5
+- Restore Engine
+
+Phase 6
+- Cleanup Engine
+
+Phase 7
+- Storage Providers
+
+Phase 8
+- Scheduler
+- Celery Background Jobs
+
+Phase 9
+- Analytics Dashboard
+
+Phase 10
+- Microsoft Marketplace SaaS Licensing
+
+Phase 11
+- Multi-Tenant Organization Support
+
+Phase 12
+- Admin Portal
+
+Phase 13
+- Automated Testing
+
+Phase 14
+- Dockerization
+
+Phase 15
+- Azure Deployment
+
+Phase 16
+- Documentation
+
+After completing each phase:
+
+- Ensure the application builds successfully.
+- Run automated tests.
+- Fix any issues before proceeding.
+- Keep the application functional at every stage.
+- Commit clean, modular, production-quality code.
