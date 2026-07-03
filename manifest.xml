@@ -53,7 +53,7 @@
     <Form xsi:type="ItemRead">
       <DesktopSettings>
         <SourceLocation DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/" />
-        <RequestedHeight>550</RequestedHeight>
+        <RequestedHeight>500</RequestedHeight>
       </DesktopSettings>
     </Form>
   </FormSettings>
