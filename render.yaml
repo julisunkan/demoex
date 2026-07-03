@@ -5,7 +5,7 @@ services:
     runtime: node
     region: oregon
     plan: starter
-    buildCommand: npm install --prefix server
+    buildCommand: npm install
     startCommand: node server/index.js
     healthCheckPath: /api/health
     envVars:

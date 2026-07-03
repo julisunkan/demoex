@@ -1,0 +1,57 @@
+Downloading cache...
+==> Cloning from https://github.com/julisunkan/demoex
+==> Checking out commit f69f855339edb9986b895c0d1664a5dfc6f51c50 in branch main
+==> Downloaded 4.0MB in 0s. Extraction took 0s.
+==> Requesting Node.js version >=20.0.0
+==> Using Node.js version 26.4.0 via /opt/render/project/src/package.json
+==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+==> Installing Node.js version 26.4.0...
+==> Running build command 'npm install --prefix server'...
+added 77 packages, and audited 78 packages in 3s
+19 packages are looking for funding
+  run `npm fund` for details
+1 high severity vulnerability
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+Run `npm audit` for details.
+==> Uploading build...
+==> Uploaded in 2.0s. Compression took 1.1s
+==> Build successful 🎉
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+==> Running 'node ./dist/index.cjs'
+node:internal/modules/cjs/loader:1572
+  throw err;
+  ^
+Error: Cannot find module '/opt/render/project/src/dist/index.cjs'
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1568:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1122:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1146:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1173:12)
+    at Module._load (node:internal/modules/cjs/loader:1345:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:260:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+Node.js v26.4.0
+==> Exited with status 1
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+==> Running 'node ./dist/index.cjs'
+node:internal/modules/cjs/loader:1572
+  throw err;
+  ^
+Error: Cannot find module '/opt/render/project/src/dist/index.cjs'
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1568:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1122:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1146:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1173:12)
+    at Module._load (node:internal/modules/cjs/loader:1345:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:260:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+Node.js v26.4.0
