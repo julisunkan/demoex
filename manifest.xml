@@ -1,37 +1,163 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
-           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-           xsi:type="MailApp">
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xsi:type="MailApp">
 
-  <Id>00000000-0000-0000-0000-000000000001</Id>
+  <!-- ── Identity ─────────────────────────────────────────────────────────── -->
+  <!--
+    IMPORTANT: Replace this GUID with a freshly generated one before submitting
+    to AppSource or distributing to a second tenant. You can generate one at
+    https://www.uuidgenerator.net/ — each tenant installation should use the
+    same stable GUID across updates.
+  -->
+  <Id>a3f7c891-2b5d-4e8f-96c0-1d4e7f2a3b5c</Id>
   <Version>1.0.0</Version>
   <ProviderName>MailVault</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="MailVault Pro for Outlook" />
-  <Description DefaultValue="Enterprise email backup, restore and analytics — right inside Outlook. Free to install; unlock Pro with a USDT payment or license key." />
-  <IconUrl DefaultValue="https://YOUR_DOMAIN/icon-80.png" />
-  <HighResolutionIconUrl DefaultValue="https://YOUR_DOMAIN/icon-80.png" />
+  <DisplayName DefaultValue="MailVault Pro" />
+  <Description DefaultValue="Enterprise email backup, restore and analytics — right inside Outlook. Back up, restore, clean up and analyse your mailbox without leaving Outlook." />
 
-  <SupportUrl DefaultValue="https://YOUR_DOMAIN/support" />
+  <!-- ── Icons (served from /public) ─────────────────────────────────────── -->
+  <!--
+    For development: points to your Replit preview domain.
+    For production:  replace with your Render / custom domain, e.g.
+                     https://your-app.onrender.com/icon-80.png
+  -->
+  <IconUrl DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/icon-80.png" />
+  <HighResolutionIconUrl DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/icon-80.png" />
+  <SupportUrl DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/support" />
+
+  <!-- ── Domain allowlist ──────────────────────────────────────────────────── -->
   <AppDomains>
-    <AppDomain>YOUR_DOMAIN</AppDomain>
+    <AppDomain>8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev</AppDomain>
+    <!-- Add your production domain here once deployed, e.g.:
+    <AppDomain>your-app.onrender.com</AppDomain>
+    -->
   </AppDomains>
 
+  <!-- ── Minimum API requirements ─────────────────────────────────────────── -->
+  <!--
+    Mailbox 1.5 is required for getCallbackTokenAsync({ isRest: true }).
+    Supported in: Outlook 2016+, Outlook on the web, New Outlook for Windows.
+  -->
   <Requirements>
-    <Sets><Set Name="Mailbox" MinVersion="1.1" /></Sets>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.5" />
+    </Sets>
   </Requirements>
 
+  <!-- ── Legacy form settings (Mailbox 1.1 fallback for older Outlook) ────── -->
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://YOUR_DOMAIN/" />
+        <SourceLocation DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/" />
         <RequestedHeight>550</RequestedHeight>
       </DesktopSettings>
     </Form>
   </FormSettings>
 
+  <!-- ReadWriteMailbox is required to read, delete, and export messages -->
   <Permissions>ReadWriteMailbox</Permissions>
+
+  <!-- Show the add-in when viewing any email message -->
   <Rule xsi:type="RuleCollection" Mode="Or">
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read" />
   </Rule>
+
+  <!-- ── Modern ribbon button + task pane (Mailbox 1.3+) ─────────────────── -->
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
+
+    <Requirements>
+      <bt:Sets DefaultMinVersion="1.5">
+        <bt:Set Name="Mailbox" />
+      </bt:Sets>
+    </Requirements>
+
+    <Hosts>
+      <Host xsi:type="MailHost">
+        <DesktopFormFactor>
+
+          <!-- Required even if no function commands are used -->
+          <FunctionFile resid="Taskpane.Url" />
+
+          <!-- ── Message Read surface (email reading pane) ── -->
+          <ExtensionPoint xsi:type="MessageReadCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="mailVaultGroup">
+                <Label resid="GroupLabel" />
+
+                <!-- Ribbon button — opens the task pane -->
+                <Control xsi:type="Button" id="openMailVaultButton">
+                  <Label resid="Btn.Label" />
+                  <Supertip>
+                    <Title resid="Btn.Label" />
+                    <Description resid="Btn.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16" />
+                    <bt:Image size="32" resid="Icon.32" />
+                    <bt:Image size="80" resid="Icon.80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>MailVaultTaskpane</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url" />
+                  </Action>
+                </Control>
+
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+
+          <!-- ── Compose surface (optional — same button in compose window) ── -->
+          <ExtensionPoint xsi:type="MessageComposeCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="mailVaultGroupCompose">
+                <Label resid="GroupLabel" />
+                <Control xsi:type="Button" id="openMailVaultButtonCompose">
+                  <Label resid="Btn.Label" />
+                  <Supertip>
+                    <Title resid="Btn.Label" />
+                    <Description resid="Btn.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16" />
+                    <bt:Image size="32" resid="Icon.32" />
+                    <bt:Image size="80" resid="Icon.80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>MailVaultTaskpane</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url" />
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <!-- ── Shared resource strings ─────────────────────────────────────────── -->
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16" DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/icon-16.png" />
+        <bt:Image id="Icon.32" DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/icon-32.png" />
+        <bt:Image id="Icon.80" DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/icon-80.png" />
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/" />
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GroupLabel"  DefaultValue="MailVault Pro" />
+        <bt:String id="Btn.Label"   DefaultValue="MailVault Pro" />
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="Btn.Tooltip" DefaultValue="Open MailVault Pro to back up, restore, clean up and analyse your Outlook mailbox." />
+      </bt:LongStrings>
+    </Resources>
+
+  </VersionOverrides>
+
 </OfficeApp>
