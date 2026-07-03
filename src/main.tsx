@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Switch, Route } from "wouter";
 import { AppConfigProvider } from "./context/AppConfigContext";
 import { queryClient } from "./lib/queryClient";
+import { initOutlook } from "./lib/outlookContext";
 import { Toaster } from "@/components/ui/toaster";
 import App from "./App";
 import LandingPage      from "./pages/landing";
@@ -41,8 +42,15 @@ function mountApp() {
   createRoot(root).render(<Root />);
 }
 
-if (typeof Office !== "undefined" && Office.initialize !== undefined) {
-  Office.onReady(() => mountApp());
-} else {
+async function bootstrap() {
+  // Fetch the Office.js callback token before mounting so that all API calls
+  // made during the first render already carry the Outlook auth headers.
+  await initOutlook();
   mountApp();
+}
+
+if (typeof Office !== "undefined" && Office.initialize !== undefined) {
+  Office.onReady(() => bootstrap());
+} else {
+  bootstrap();
 }

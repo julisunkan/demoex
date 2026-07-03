@@ -1,45 +1,41 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Check, ChevronLeft, ChevronRight, RotateCcw, Archive, Loader2, FolderOpen } from "lucide-react";
+import { isInOutlook } from "@/lib/outlookContext";
+import { apiRequest } from "@/lib/queryClient";
+import { Check, ChevronLeft, ChevronRight, RotateCcw, Archive, Loader2, FolderOpen, AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface BackupRecord {
-  id:        string;
-  label:     string;
-  date:      string;
-  size:      string;
-  folders:   string[];
-  encrypted: boolean;
-  source:    string;
+  id:          string;
+  label:       string;
+  date:        string;
+  size:        string;
+  folders:     string[];
+  encrypted:   boolean;
+  destination: string;
+  emails:      number;
 }
 
-const MOCK_BACKUPS: BackupRecord[] = [
-  { id: "b1", label: "Full Mailbox Backup",  date: "Today, 3:00 AM",     size: "1.2 GB", folders: ["Inbox","Sent","Archive","Drafts","Deleted","Junk"], encrypted: true,  source: "Local" },
-  { id: "b2", label: "Sent Items Backup",    date: "Jun 28, 11:45 PM",   size: "340 MB", folders: ["Sent"], encrypted: false, source: "OneDrive" },
-  { id: "b3", label: "Full Mailbox Backup",  date: "Jun 26, 3:00 AM",    size: "1.1 GB", folders: ["Inbox","Sent","Archive","Drafts","Deleted","Junk"], encrypted: true,  source: "Local" },
-  { id: "b4", label: "Inbox Backup",         date: "Jun 24, 6:00 PM",    size: "620 MB", folders: ["Inbox"], encrypted: false, source: "Azure Blob" },
-];
-
 const SCOPES = [
-  { id: "full",    label: "Entire Backup",      desc: "Restore all folders and emails" },
-  { id: "folder",  label: "Specific Folders",   desc: "Choose folders to restore" },
-  { id: "email",   label: "Individual Emails",  desc: "Search and pick specific emails" },
+  { id: "full",   label: "Entire Backup",     desc: "Restore all folders and emails" },
+  { id: "folder", label: "Specific Folders",  desc: "Choose folders to restore" },
+  { id: "email",  label: "Individual Emails", desc: "Search and pick specific emails" },
 ];
 
 const CONFLICTS = [
-  { id: "skip",  label: "Skip Duplicates",   desc: "Don't import if email already exists" },
-  { id: "replace",label: "Replace Existing", desc: "Overwrite matching emails" },
-  { id: "keep",  label: "Keep Both",         desc: "Import all and keep both copies" },
+  { id: "skip",    label: "Skip Duplicates",  desc: "Don't import if email already exists" },
+  { id: "replace", label: "Replace Existing", desc: "Overwrite matching emails" },
+  { id: "keep",    label: "Keep Both",        desc: "Import all and keep both copies" },
 ];
 
 const DESTINATIONS_RESTORE = [
-  { id: "original", label: "Original Folder",  desc: "Restore each email to its original location" },
-  { id: "inbox",    label: "Inbox",             desc: "Place all restored emails in Inbox" },
-  { id: "archive",  label: "Archive",           desc: "Place all restored emails in Archive" },
+  { id: "original", label: "Original Folder", desc: "Restore each email to its original location" },
+  { id: "inbox",    label: "Inbox",           desc: "Place all restored emails in Inbox" },
+  { id: "archive",  label: "Archive",         desc: "Place all restored emails in Archive" },
 ];
 
-const TOTAL = 5;
+const TOTAL  = 5;
 const LABELS = ["Select Backup", "Scope", "Conflict", "Destination", "Summary"];
 
 export default function RestoreWizard() {
@@ -48,37 +44,47 @@ export default function RestoreWizard() {
   const [running, setRunning]   = useState(false);
   const [done, setDone]         = useState(false);
   const [progress, setProgress] = useState(0);
+  const [selected, setSelected] = useState<string>("");
+  const [scope, setScope]       = useState("full");
+  const [conflict, setConflict] = useState("skip");
+  const [restoreDest, setRestDest] = useState("original");
 
-  const [selected, setSelected]   = useState<string>("");
-  const [scope, setScope]         = useState("full");
-  const [conflict, setConflict]   = useState("skip");
-  const [restoreDest, setRestDest]= useState("original");
+  const inOutlook = isInOutlook();
 
-  const { data: backups } = useQuery<BackupRecord[]>({
-    queryKey: ["/api/backup/list"],
+  const { data: backups, isLoading: backupsLoading } = useQuery<BackupRecord[]>({
+    queryKey:  ["/api/backup/list"],
     staleTime: 60_000,
   });
 
-  const allBackups = backups ?? MOCK_BACKUPS;
-  const pickedBackup = allBackups.find(b => b.id === selected);
+  const pickedBackup = (backups ?? []).find(b => b.id === selected);
 
   async function startRestore() {
+    if (!inOutlook) {
+      toast({ title: "Open inside Outlook to restore emails.", variant: "destructive" });
+      return;
+    }
     setRunning(true); setProgress(0);
 
-    fetch("/api/restore/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      await apiRequest("POST", "/api/restore/start", {
         backupId:    selected,
         scope,
         conflict,
         destination: restoreDest,
-      }),
-    }).catch(() => null);
+      });
+    } catch (err: unknown) {
+      toast({ title: "Restore failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+      setRunning(false);
+      return;
+    }
 
     const iv = setInterval(() => setProgress(p => Math.min(p + Math.random() * 10, 99)), 500);
     await new Promise(r => setTimeout(r, 5000));
-    clearInterval(iv); setProgress(100); setRunning(false); setDone(true);
+    clearInterval(iv);
+    setProgress(100);
+    await new Promise(r => setTimeout(r, 300));
+    setRunning(false);
+    setDone(true);
     toast({ title: "✅ Restore complete", description: "Emails restored to your mailbox." });
   }
 
@@ -107,7 +113,7 @@ export default function RestoreWizard() {
       <Progress value={Math.min(progress, 100)} className="h-3" />
       <p className="text-center text-sm font-bold text-primary">{Math.min(Math.round(progress), 100)}%</p>
       <div className="bg-muted rounded-xl p-3 space-y-1.5">
-        {["Verifying backup integrity…", "Decrypting archive…", "Processing emails…", "Importing to mailbox…", "Finalizing restore…"]
+        {["Verifying backup integrity…", "Decrypting archive…", "Processing emails…", "Importing to mailbox…", "Finalising restore…"]
           .map((msg, i) => (
             <div key={i} className={`flex items-center gap-2 text-xs ${progress > i * 20 ? "text-foreground" : "text-muted-foreground"}`}>
               {progress > (i + 1) * 20 ? <Check className="w-3 h-3 text-green-600 shrink-0" />
@@ -125,7 +131,7 @@ export default function RestoreWizard() {
       {/* Step indicator */}
       <div className="px-4 pt-4 pb-3 bg-white border-b">
         <div className="flex items-center gap-1 mb-2">
-          {LABELS.map((label, i) => {
+          {LABELS.map((_, i) => {
             const n = i + 1; const isDone = n < step; const active = n === step;
             return (
               <div key={n} className="flex items-center gap-1 flex-1 min-w-0">
@@ -146,29 +152,48 @@ export default function RestoreWizard() {
         {/* Step 1: Select Backup */}
         {step === 1 && (
           <div className="space-y-3 animate-fade-in-up">
+            {!inOutlook && (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-amber-700">Open inside Outlook to restore emails to your mailbox.</p>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">Choose the backup to restore from.</p>
-            <div className="space-y-2">
-              {allBackups.map(b => (
-                <button key={b.id} onClick={() => setSelected(b.id)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                    selected === b.id ? "border-green-600 bg-green-50" : "border-border bg-white hover:border-green-300"
-                  }`}>
-                  <Archive className={`w-5 h-5 shrink-0 ${selected === b.id ? "text-green-600" : "text-muted-foreground"}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold truncate">{b.label}</p>
-                    <p className="text-[10px] text-muted-foreground">{b.date} · {b.size} · {b.source}</p>
-                    <div className="flex gap-1 mt-1 flex-wrap">
-                      {b.folders.slice(0, 3).map(f => (
-                        <span key={f} className="text-[9px] bg-muted px-1.5 rounded">{f}</span>
-                      ))}
-                      {b.folders.length > 3 && <span className="text-[9px] bg-muted px-1.5 rounded">+{b.folders.length - 3} more</span>}
-                    </div>
-                  </div>
-                  {b.encrypted && <span className="text-[9px] status-badge-info px-1.5 py-0.5 rounded-full">🔒</span>}
-                  {selected === b.id && <Check className="w-4 h-4 text-green-600 shrink-0" />}
-                </button>
-              ))}
-            </div>
+            {backupsLoading
+              ? <div className="h-32 rounded-xl bg-muted animate-pulse" />
+              : !backups?.length
+              ? (
+                <div className="py-8 text-center space-y-2">
+                  <Archive className="w-8 h-8 text-muted-foreground mx-auto" />
+                  <p className="text-xs font-bold">No backups yet</p>
+                  <p className="text-[10px] text-muted-foreground">Create a backup first using the Backup tab.</p>
+                </div>
+              )
+              : (
+                <div className="space-y-2">
+                  {backups.map(b => (
+                    <button key={b.id} onClick={() => setSelected(b.id)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                        selected === b.id ? "border-green-600 bg-green-50" : "border-border bg-white hover:border-green-300"
+                      }`}>
+                      <Archive className={`w-5 h-5 shrink-0 ${selected === b.id ? "text-green-600" : "text-muted-foreground"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold truncate">{b.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{b.date} · {b.size} · {b.emails?.toLocaleString() ?? "?"} emails</p>
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {b.folders.slice(0, 3).map(f => (
+                            <span key={f} className="text-[9px] bg-muted px-1.5 rounded">{f}</span>
+                          ))}
+                          {b.folders.length > 3 && <span className="text-[9px] bg-muted px-1.5 rounded">+{b.folders.length - 3} more</span>}
+                        </div>
+                      </div>
+                      {b.encrypted && <span className="text-[9px] status-badge-info px-1.5 py-0.5 rounded-full">🔒</span>}
+                      {selected === b.id && <Check className="w-4 h-4 text-green-600 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )
+            }
           </div>
         )}
 
@@ -236,12 +261,13 @@ export default function RestoreWizard() {
               <SumRow label="Backup"      value={pickedBackup?.label ?? ""} />
               <SumRow label="Date"        value={pickedBackup?.date ?? ""} />
               <SumRow label="Size"        value={pickedBackup?.size ?? ""} />
+              <SumRow label="Emails"      value={(pickedBackup?.emails ?? 0).toLocaleString()} />
               <SumRow label="Scope"       value={SCOPES.find(s => s.id === scope)?.label ?? scope} />
               <SumRow label="Conflicts"   value={CONFLICTS.find(c => c.id === conflict)?.label ?? conflict} />
               <SumRow label="Destination" value={DESTINATIONS_RESTORE.find(d => d.id === restoreDest)?.label ?? restoreDest} />
             </div>
             <div className="text-[10px] text-muted-foreground bg-amber-50 border border-amber-100 rounded-xl p-2.5">
-              ⚠️ Restore will import emails into your live mailbox. This action cannot be automatically undone.
+              ⚠️ Restore will import emails into your live Outlook mailbox. This action cannot be automatically undone.
             </div>
           </div>
         )}
@@ -256,13 +282,19 @@ export default function RestoreWizard() {
         )}
         {step < TOTAL ? (
           <button
-            onClick={() => { if (step === 1 && !selected) { toast({ title: "Select a backup", variant: "destructive" }); return; } setStep(s => s + 1); }}
+            onClick={() => {
+              if (step === 1 && !selected) { toast({ title: "Select a backup", variant: "destructive" }); return; }
+              setStep(s => s + 1);
+            }}
             className="flex-1 flex items-center justify-center gap-1 bg-green-600 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-green-700"
           >
             Next <ChevronRight className="w-3.5 h-3.5" />
           </button>
         ) : (
-          <button onClick={startRestore} className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 rounded-xl text-sm font-black hover:bg-green-700 shadow-lg">
+          <button
+            onClick={startRestore}
+            className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 rounded-xl text-sm font-black hover:bg-green-700 shadow-lg"
+          >
             <RotateCcw className="w-4 h-4" /> Start Restore
           </button>
         )}

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatExpiry, type SubscriptionInfo } from "@/lib/license";
+import { isInOutlook } from "@/lib/outlookContext";
 import { type Tab } from "./tab-types";
 import {
   Archive, RotateCcw, Trash2, BarChart3, CheckCircle2,
@@ -15,12 +16,13 @@ interface Props {
 }
 
 interface MailboxStats {
-  totalSize:     number;
-  totalEmails:   number;
-  storageUsedPct: number;
-  lastBackup:    string | null;
-  nextBackup:    string | null;
-  backupCount:   number;
+  connected:      boolean;
+  totalSize:      number;
+  totalEmails:    number;
+  storageUsedPct: number | null;
+  lastBackup:     string | null;
+  nextBackup:     string | null;
+  backupCount:    number;
 }
 
 interface RecentJob {
@@ -57,17 +59,19 @@ function fmtNum(n: number): string {
 }
 
 export default function Dashboard({ subscription, onNavigate, onOpenSettings }: Props) {
-  const { data: stats, isLoading: statsLoading } = useQuery<MailboxStats>({
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<MailboxStats>({
     queryKey: ["/api/mailbox/stats"],
     staleTime: 60_000,
   });
 
   const { data: jobs, isLoading: jobsLoading } = useQuery<RecentJob[]>({
-    queryKey: ["/api/backup/recent"],
+    queryKey:  ["/api/backup/recent"],
     staleTime: 30_000,
   });
 
-  const isPro = subscription?.subscribed ?? false;
+  const isPro      = subscription?.subscribed ?? false;
+  const connected  = stats?.connected ?? false;
+  const inOutlook  = isInOutlook();
 
   return (
     <div className="p-4 space-y-4 animate-fade-in-up">
@@ -76,6 +80,19 @@ export default function Dashboard({ subscription, onNavigate, onOpenSettings }: 
         <h2 className="text-base font-black">Welcome back 👋</h2>
         <p className="text-xs text-muted-foreground">Your mailbox is protected and monitored.</p>
       </div>
+
+      {/* Not-in-Outlook banner */}
+      {!inOutlook && (
+        <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-3 flex items-start gap-2.5">
+          <AlertTriangle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-black text-blue-800">Open inside Outlook</p>
+            <p className="text-[10px] text-blue-700">
+              Load this add-in from the Outlook task pane to connect to your real mailbox.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* License banner */}
       {!isPro && (
@@ -98,56 +115,60 @@ export default function Dashboard({ subscription, onNavigate, onOpenSettings }: 
       <div className="grid grid-cols-2 gap-2">
         <StatCard
           title="Mailbox Size"
-          value={statsLoading ? "…" : fmtBytes(stats?.totalSize ?? 3_420_000_000)}
+          value={statsLoading ? "…" : connected ? fmtBytes(stats!.totalSize) : "—"}
           icon={HardDrive}
           colorClass="stat-blue"
         />
         <StatCard
           title="Total Emails"
-          value={statsLoading ? "…" : fmtNum(stats?.totalEmails ?? 12847)}
+          value={statsLoading ? "…" : connected ? fmtNum(stats!.totalEmails) : "—"}
           icon={Mail}
           colorClass="stat-purple"
         />
         <StatCard
           title="Backups Made"
-          value={statsLoading ? "…" : String(stats?.backupCount ?? 24)}
+          value={statsLoading ? "…" : connected ? String(stats!.backupCount) : "—"}
           icon={Archive}
           colorClass="stat-green"
         />
         <StatCard
           title="Storage Used"
-          value={statsLoading ? "…" : `${stats?.storageUsedPct ?? 68}%`}
+          value={statsLoading ? "…" : connected && stats!.storageUsedPct != null ? `${stats!.storageUsedPct}%` : "—"}
           icon={Zap}
           colorClass="stat-amber"
         />
       </div>
 
-      {/* Storage bar */}
-      <div className="bg-white border border-border rounded-2xl p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-bold">Storage Usage</p>
-          <p className="text-xs text-muted-foreground">
-            {fmtBytes((stats?.totalSize ?? 3_420_000_000) * (stats?.storageUsedPct ?? 68) / 100)} of {fmtBytes(stats?.totalSize ?? 5_000_000_000)}
-          </p>
+      {/* Storage bar — only when we have real data */}
+      {connected && stats!.totalSize > 0 && (
+        <div className="bg-white border border-border rounded-2xl p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold">Mailbox Size</p>
+            <p className="text-xs text-muted-foreground">{fmtBytes(stats!.totalSize)}</p>
+          </div>
+          {stats!.storageUsedPct != null && (
+            <>
+              <Progress value={stats!.storageUsedPct} className="h-2" />
+              <p className="text-[10px] text-muted-foreground">
+                {stats!.storageUsedPct > 80
+                  ? "⚠️ Storage almost full — run a cleanup to free space"
+                  : "✅ Storage usage is healthy"
+                }
+              </p>
+            </>
+          )}
         </div>
-        <Progress value={stats?.storageUsedPct ?? 68} className="h-2" />
-        <p className="text-[10px] text-muted-foreground">
-          {stats?.storageUsedPct && stats.storageUsedPct > 80
-            ? "⚠️ Storage almost full — run a cleanup to free space"
-            : "✅ Storage usage is healthy"
-          }
-        </p>
-      </div>
+      )}
 
       {/* Quick actions */}
       <div>
         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Quick Actions</p>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { id: "backup",    icon: Archive,   label: "Start Backup",   desc: "Back up emails now",         color: "bg-blue-50 border-blue-200 text-blue-700" },
-            { id: "restore",   icon: RotateCcw, label: "Restore",        desc: "Recover from backup",         color: "bg-green-50 border-green-200 text-green-700" },
-            { id: "cleanup",   icon: Trash2,    label: "Cleanup",        desc: "Free up mailbox space",       color: "bg-red-50 border-red-200 text-red-700" },
-            { id: "analytics", icon: BarChart3, label: "Analytics",      desc: "View mailbox insights",       color: "bg-purple-50 border-purple-200 text-purple-700" },
+            { id: "backup",    icon: Archive,   label: "Start Backup",   desc: "Back up emails now",     color: "bg-blue-50 border-blue-200 text-blue-700" },
+            { id: "restore",   icon: RotateCcw, label: "Restore",        desc: "Recover from backup",    color: "bg-green-50 border-green-200 text-green-700" },
+            { id: "cleanup",   icon: Trash2,    label: "Cleanup",        desc: "Free up mailbox space",  color: "bg-red-50 border-red-200 text-red-700" },
+            { id: "analytics", icon: BarChart3, label: "Analytics",      desc: "View mailbox insights",  color: "bg-purple-50 border-purple-200 text-purple-700" },
           ].map(({ id, icon: Icon, label, desc, color }) => (
             <button
               key={id}
@@ -165,10 +186,17 @@ export default function Dashboard({ subscription, onNavigate, onOpenSettings }: 
 
       {/* Backup status */}
       <div className="bg-white border border-border rounded-2xl p-3 space-y-2">
-        <p className="text-xs font-black">Backup Status</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-black">Backup Status</p>
+          {connected && (
+            <button onClick={() => refetchStats()} className="text-[10px] text-primary font-bold flex items-center gap-1">
+              <RefreshCw className="w-3 h-3" /> Refresh
+            </button>
+          )}
+        </div>
         <div className="flex gap-2">
-          <InfoPill label="Last Backup" value={stats?.lastBackup ?? "2 hours ago"} icon={CheckCircle2} color="text-green-600" />
-          <InfoPill label="Next Backup" value={stats?.nextBackup ?? "Tomorrow 2:00 AM"} icon={Calendar} color="text-blue-600" />
+          <InfoPill label="Last Backup" value={stats?.lastBackup ?? "Never"} icon={CheckCircle2} color="text-green-600" />
+          <InfoPill label="Next Backup" value={stats?.nextBackup ?? "Not scheduled"} icon={Calendar} color="text-blue-600" />
         </div>
       </div>
 
@@ -178,7 +206,9 @@ export default function Dashboard({ subscription, onNavigate, onOpenSettings }: 
         <div className="space-y-2">
           {jobsLoading
             ? [1, 2, 3].map(i => <div key={i} className="h-12 rounded-xl bg-muted animate-pulse" />)
-            : (jobs ?? MOCK_JOBS).slice(0, 5).map((job) => <JobRow key={job.id} job={job} />)
+            : !jobs?.length
+            ? <p className="text-xs text-muted-foreground text-center py-4">No jobs yet — start a backup or cleanup.</p>
+            : jobs.slice(0, 5).map(job => <JobRow key={job.id} job={job} />)
           }
         </div>
       </div>
@@ -229,7 +259,7 @@ function InfoPill({ label, value, icon: Icon, color }: { label: string; value: s
 
 function JobRow({ job }: { job: RecentJob }) {
   const { label: statusLabel, class: statusClass, icon: StatusIcon } = STATUS_META[job.status];
-  const JobIcon = JOB_ICONS[job.type];
+  const JobIcon = JOB_ICONS[job.type] ?? Archive;
   return (
     <div className="flex items-center gap-2.5 bg-white border border-border rounded-xl px-3 py-2">
       <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -246,11 +276,3 @@ function JobRow({ job }: { job: RecentJob }) {
     </div>
   );
 }
-
-const MOCK_JOBS: RecentJob[] = [
-  { id: "1", type: "backup",  status: "completed", label: "Full Mailbox Backup",     startedAt: "Today 3:00 AM",     duration: 420, size: "1.2 GB" },
-  { id: "2", type: "cleanup", status: "completed", label: "Newsletters Cleanup",     startedAt: "Yesterday",         duration: 60,  size: "340 MB freed" },
-  { id: "3", type: "restore", status: "completed", label: "Inbox Restore",           startedAt: "Jun 28",            duration: 180, size: "420 MB" },
-  { id: "4", type: "backup",  status: "failed",    label: "Incremental Backup",      startedAt: "Jun 27",            duration: null, size: null },
-  { id: "5", type: "backup",  status: "completed", label: "Sent Items Backup",       startedAt: "Jun 26",            duration: 240, size: "680 MB" },
-];
