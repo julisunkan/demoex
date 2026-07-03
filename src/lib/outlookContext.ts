@@ -26,15 +26,17 @@ export function isInOutlook(): boolean {
   }
 }
 
-export async function initOutlook(): Promise<OutlookCtx | null> {
-  if (!isInOutlook()) return null;
-  if (_ctx)           return _ctx;
-  if (_initPromise)   return _initPromise;
-
-  _initPromise = new Promise<OutlookCtx | null>((resolve) => {
+/** Attempt getCallbackTokenAsync once; resolves with ctx or null. */
+function attemptToken(): Promise<OutlookCtx | null> {
+  return new Promise<OutlookCtx | null>((resolve) => {
     try {
       Office.context.mailbox.getCallbackTokenAsync({ isRest: true }, (result) => {
-        if (result.status === (Office.AsyncResultStatus as { Succeeded: string }).Succeeded) {
+        // Compare against the string value directly — safer than enum reference
+        const succeeded =
+          result.status === "succeeded" ||
+          result.status === (Office.AsyncResultStatus as { Succeeded: string }).Succeeded;
+
+        if (succeeded && result.value) {
           const ctx: OutlookCtx = {
             token:   result.value as string,
             restUrl: Office.context.mailbox.restUrl,
@@ -42,15 +44,49 @@ export async function initOutlook(): Promise<OutlookCtx | null> {
           _ctx = ctx;
           resolve(ctx);
         } else {
-          console.warn("[MailVault] Could not get Outlook token:", (result.error as { message?: string })?.message);
+          console.warn(
+            "[MailVault] Token attempt failed:",
+            (result.error as { message?: string })?.message ?? result.status
+          );
           resolve(null);
         }
       });
     } catch (e) {
-      console.warn("[MailVault] initOutlook failed:", e);
+      console.warn("[MailVault] getCallbackTokenAsync threw:", e);
       resolve(null);
     }
   });
+}
+
+export async function initOutlook(): Promise<OutlookCtx | null> {
+  if (!isInOutlook()) return null;
+  if (_ctx)           return _ctx;
+  if (_initPromise)   return _initPromise;
+
+  _initPromise = (async () => {
+    // Retry up to 3 times with a short delay between attempts.
+    // getCallbackTokenAsync can fail transiently on the first call when the
+    // add-in has just loaded.
+    const MAX_ATTEMPTS = 3;
+    const DELAY_MS     = 800;
+
+    try {
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const ctx = await attemptToken();
+        if (ctx) return ctx;
+        if (attempt < MAX_ATTEMPTS) {
+          console.warn(`[MailVault] Retrying token acquisition (attempt ${attempt + 1}/${MAX_ATTEMPTS})…`);
+          await new Promise(r => setTimeout(r, DELAY_MS * attempt));
+        }
+      }
+      console.error("[MailVault] Could not acquire Outlook token after", MAX_ATTEMPTS, "attempts.");
+      return null;
+    } finally {
+      // Reset the promise after failure so future calls (e.g. triggered by
+      // the dashboard polling or a manual refresh) can attempt acquisition again.
+      if (!_ctx) _initPromise = null;
+    }
+  })();
 
   return _initPromise;
 }

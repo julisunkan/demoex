@@ -2,6 +2,22 @@ import { QueryClient } from "@tanstack/react-query";
 import { getOutlookHeaders, refreshOutlookToken } from "./outlookContext";
 
 /**
+ * Base URL for all API requests.
+ * In development (Vite proxy), this is empty so relative URLs are used.
+ * In production on a separate domain (e.g. Render static site + API service),
+ * set VITE_API_URL to the backend origin, e.g. https://my-api.onrender.com
+ */
+const API_BASE: string = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+
+/** Resolve an API path to a full URL, prepending API_BASE when set. */
+function resolveUrl(path: string): string {
+  if (API_BASE && path.startsWith("/")) {
+    return `${API_BASE.replace(/\/+$/, "")}${path}`;
+  }
+  return path;
+}
+
+/**
  * Build request headers, injecting Outlook auth when a token is available.
  */
 function buildHeaders(extra?: Record<string, string>): Record<string, string> {
@@ -16,12 +32,13 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
  * Fetch wrapper that retries once after refreshing the Outlook token on 401.
  */
 async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
-  let res = await fetch(url, { ...init, headers: buildHeaders() });
+  const fullUrl = resolveUrl(url);
+  let res = await fetch(fullUrl, { ...init, headers: buildHeaders() });
 
   if (res.status === 401) {
     // Token may have expired — refresh and try once more
     await refreshOutlookToken();
-    res = await fetch(url, { ...init, headers: buildHeaders() });
+    res = await fetch(fullUrl, { ...init, headers: buildHeaders() });
   }
 
   return res;

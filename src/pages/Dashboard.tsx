@@ -62,6 +62,9 @@ export default function Dashboard({ subscription, onNavigate, onOpenSettings }: 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<MailboxStats>({
     queryKey: ["/api/mailbox/stats"],
     staleTime: 60_000,
+    // Poll every 5 s while not yet connected so data appears as soon as the
+    // Outlook token becomes available.  Stop polling once connected.
+    refetchInterval: (query) => query.state.data?.connected ? false : 5_000,
   });
 
   const { data: jobs, isLoading: jobsLoading } = useQuery<RecentJob[]>({
