@@ -35,6 +35,18 @@ export interface UsdtPayment {
 
 const LICENSE_STORAGE_KEY = "mailvault_license_key";
 
+/**
+ * Resolve an API path against VITE_API_URL when set (production, separate
+ * frontend + backend domains).  Falls back to the relative path in dev so
+ * Vite's proxy continues to work unchanged.
+ */
+const API_BASE: string =
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
+
+function apiUrl(path: string): string {
+  return API_BASE ? `${API_BASE}${path}` : path;
+}
+
 export function getStoredLicenseKey(): string | null {
   try { return localStorage.getItem(LICENSE_STORAGE_KEY); } catch { return null; }
 }
@@ -52,30 +64,37 @@ async function handle<T>(res: Response): Promise<T> {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error || `Request failed (${res.status})`);
   }
-  return res.json();
+  // Wrap the success-path parse so a missing/empty/malformed body surfaces a
+  // clear message instead of the raw SyntaxError ("Unexpected end of JSON
+  // input") leaking into the UI.
+  try {
+    return await res.json() as T;
+  } catch {
+    throw new Error("Server returned an empty response. Please try again.");
+  }
 }
 
 export async function fetchBillingConfig(): Promise<BillingConfig> {
-  const res = await fetch("/api/billing/config");
+  const res = await fetch(apiUrl("/api/billing/config"));
   return handle<BillingConfig>(res);
 }
 
 export async function verifyLicense(licenseKey: string): Promise<SubscriptionInfo> {
   try {
-    const res = await fetch("/api/billing/license/verify", {
+    const res = await fetch(apiUrl("/api/billing/license/verify"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey }),
     });
     if (!res.ok) return { subscribed: false };
-    return res.json();
+    return await res.json();
   } catch {
     return { subscribed: false };
   }
 }
 
 export async function redeemLicense(licenseKey: string): Promise<SubscriptionInfo> {
-  const res = await fetch("/api/billing/license/redeem", {
+  const res = await fetch(apiUrl("/api/billing/license/redeem"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ licenseKey }),
@@ -86,7 +105,7 @@ export async function redeemLicense(licenseKey: string): Promise<SubscriptionInf
 export async function submitUsdtPayment(payload: {
   planId: string; txHash: string; walletFrom?: string; note?: string;
 }): Promise<UsdtPayment> {
-  const res = await fetch("/api/billing/usdt/submit", {
+  const res = await fetch(apiUrl("/api/billing/usdt/submit"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -95,7 +114,7 @@ export async function submitUsdtPayment(payload: {
 }
 
 export async function checkUsdtPaymentStatus(id: string): Promise<UsdtPayment> {
-  const res = await fetch(`/api/billing/usdt/${id}`);
+  const res = await fetch(apiUrl(`/api/billing/usdt/${id}`));
   return handle<UsdtPayment>(res);
 }
 
