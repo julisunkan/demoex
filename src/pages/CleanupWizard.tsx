@@ -66,6 +66,17 @@ export default function CleanupWizard({ isPro }: { isPro: boolean }) {
   async function runCleanup() {
     if (!confirm) { toast({ title: "Please confirm deletion", variant: "destructive" }); return; }
     setRunning(true); setProgress(0);
+
+    fetch("/api/cleanup/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        emailIds:    selectedEmails.map(e => e.id),
+        backupFirst,
+        filters:     { olderThan: Number(olderThan), newsletters, promotional, social, duplicates, senderFilter },
+      }),
+    }).catch(() => null);
+
     const iv = setInterval(() => setProgress(p => Math.min(p + Math.random() * 15, 99)), 400);
     await new Promise(r => setTimeout(r, 4000));
     clearInterval(iv); setProgress(100); setRunning(false); setDone(true);

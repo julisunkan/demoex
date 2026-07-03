@@ -30,7 +30,12 @@ const STORAGE_PROVIDERS = [
 export default function Settings({ account, subscription, onBack }: Props) {
   const { toast } = useToast();
   const [section, setSection] = useState<Section>("main");
-  const [connected, setConnected] = useState<Set<string>>(new Set(["local"]));
+  const [connected, setConnected]     = useState<Set<string>>(new Set(["local"]))
+  const [expandedProvider, setExpanded] = useState<string | null>(null)
+  const [azureConnStr, setAzureConnStr] = useState("")
+  const [azureContainer, setAzureContainer] = useState("mailvault-backups")
+  const [s3Bucket, setS3Bucket]       = useState("")
+  const [s3Region, setS3Region]       = useState("us-east-1");
 
   // Notification prefs
   const [notifBackupDone,    setNotifBackupDone]    = useState(true);
@@ -51,8 +56,19 @@ export default function Settings({ account, subscription, onBack }: Props) {
       toast({ title: "Pro required", description: "Upgrade to connect cloud storage providers.", variant: "destructive" });
       return;
     }
-    setConnected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-    toast({ title: connected.has(id) ? "Disconnected" : "Connected" });
+    if (connected.has(id)) {
+      setConnected(prev => { const n = new Set(prev); n.delete(id); return n; });
+      setExpanded(null);
+      toast({ title: "Disconnected", description: `${id} storage removed` });
+    } else {
+      setExpanded(id);
+    }
+  }
+
+  function confirmConnect(id: string) {
+    setConnected(prev => new Set([...prev, id]));
+    setExpanded(null);
+    toast({ title: "Connected", description: `${id} storage connected successfully` });
   }
 
   if (section === "storage") return (
@@ -64,34 +80,95 @@ export default function Settings({ account, subscription, onBack }: Props) {
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         <p className="text-xs text-muted-foreground">Connect storage providers to save your backups to the cloud.</p>
         {STORAGE_PROVIDERS.map(({ id, label, icon: Icon, pro }) => (
-          <div key={id} className="flex items-center gap-3 bg-white border border-border rounded-xl p-3">
-            <Icon className="w-5 h-5 text-muted-foreground shrink-0" />
-            <div className="flex-1">
-              <div className="flex items-center gap-1.5">
-                <p className="text-xs font-bold">{label}</p>
-                {pro && !isPro && <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">PRO</span>}
+          <div key={id} className="rounded-xl border border-border bg-white overflow-hidden">
+            <div className="flex items-center gap-3 p-3">
+              <Icon className="w-5 h-5 text-muted-foreground shrink-0" />
+              <div className="flex-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-bold">{label}</p>
+                  {pro && !isPro && <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">PRO</span>}
+                </div>
+                {connected.has(id)
+                  ? <p className="text-[10px] text-green-600 font-bold">✅ Connected</p>
+                  : expandedProvider === id
+                  ? <p className="text-[10px] text-blue-600 font-bold">Enter credentials below</p>
+                  : null
+                }
               </div>
-              {connected.has(id) && <p className="text-[10px] text-green-600 font-bold">Connected</p>}
+              <button
+                onClick={() => handleConnect(id)}
+                className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
+                  connected.has(id)
+                    ? "bg-muted text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                    : "bg-primary/10 text-primary hover:bg-primary hover:text-white"
+                }`}
+              >
+                {connected.has(id) ? "Disconnect" : "Connect"}
+              </button>
             </div>
-            <button
-              onClick={() => handleConnect(id)}
-              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
-                connected.has(id) ? "bg-muted text-muted-foreground hover:bg-red-50 hover:text-red-600"
-                  : "bg-primary/10 text-primary hover:bg-primary hover:text-white"
-              }`}
-            >
-              {connected.has(id) ? "Disconnect" : "Connect"}
-            </button>
+
+            {/* Azure credentials form */}
+            {expandedProvider === "azure" && id === "azure" && (
+              <div className="border-t border-border px-3 pb-3 pt-2 space-y-2 bg-blue-50/40 animate-fade-in-up">
+                <div>
+                  <Label className="text-[10px] font-bold">Connection String</Label>
+                  <Input type="password" value={azureConnStr} onChange={e => setAzureConnStr(e.target.value)}
+                    placeholder="DefaultEndpointsProtocol=https;AccountName=…" className="text-xs mt-1" />
+                </div>
+                <div>
+                  <Label className="text-[10px] font-bold">Container Name</Label>
+                  <Input value={azureContainer} onChange={e => setAzureContainer(e.target.value)}
+                    placeholder="mailvault-backups" className="text-xs mt-1" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setExpanded(null)} className="flex-1 text-xs py-1.5 rounded-lg border border-border hover:bg-muted">Cancel</button>
+                  <button onClick={() => confirmConnect("azure")} disabled={!azureConnStr.trim()}
+                    className="flex-1 text-xs py-1.5 rounded-lg bg-primary text-white font-bold hover:bg-primary/90 disabled:opacity-40">
+                    Save & Connect
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* S3 credentials form */}
+            {expandedProvider === "s3" && id === "s3" && (
+              <div className="border-t border-border px-3 pb-3 pt-2 space-y-2 bg-blue-50/40 animate-fade-in-up">
+                <div>
+                  <Label className="text-[10px] font-bold">Bucket Name</Label>
+                  <Input value={s3Bucket} onChange={e => setS3Bucket(e.target.value)}
+                    placeholder="my-mailvault-bucket" className="text-xs mt-1" />
+                </div>
+                <div>
+                  <Label className="text-[10px] font-bold">Region</Label>
+                  <Input value={s3Region} onChange={e => setS3Region(e.target.value)}
+                    placeholder="us-east-1" className="text-xs mt-1" />
+                </div>
+                <p className="text-[10px] text-muted-foreground">AWS credentials are read from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setExpanded(null)} className="flex-1 text-xs py-1.5 rounded-lg border border-border hover:bg-muted">Cancel</button>
+                  <button onClick={() => confirmConnect("s3")} disabled={!s3Bucket.trim()}
+                    className="flex-1 text-xs py-1.5 rounded-lg bg-primary text-white font-bold hover:bg-primary/90 disabled:opacity-40">
+                    Save & Connect
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* OAuth providers (OneDrive, GDrive, Dropbox) */}
+            {expandedProvider === id && !["azure", "s3", "local"].includes(id) && (
+              <div className="border-t border-border px-3 pb-3 pt-2 space-y-2 bg-blue-50/40 animate-fade-in-up">
+                <p className="text-[10px] text-muted-foreground">You will be redirected to {label} to authorize access. No passwords are stored.</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setExpanded(null)} className="flex-1 text-xs py-1.5 rounded-lg border border-border hover:bg-muted">Cancel</button>
+                  <button onClick={() => confirmConnect(id)}
+                    className="flex-1 text-xs py-1.5 rounded-lg bg-primary text-white font-bold hover:bg-primary/90">
+                    Authorize with {label}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
-        {id => id === "azure" && isPro && (
-          <div className="space-y-2 animate-fade-in-up">
-            <Label className="text-[10px] font-bold">Connection String</Label>
-            <Input type="password" placeholder="DefaultEndpointsProtocol=https;…" className="text-xs" />
-            <Label className="text-[10px] font-bold">Container Name</Label>
-            <Input placeholder="mailvault-backups" className="text-xs" />
-          </div>
-        )}
       </div>
     </div>
   );

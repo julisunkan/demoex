@@ -1,6 +1,8 @@
 import express from "express";
 import cors    from "cors";
 import backupRouter      from "./routes/backup.js";
+import restoreRouter     from "./routes/restore.js";
+import cleanupRouter     from "./routes/cleanup.js";
 import analyticsRouter   from "./routes/analytics.js";
 import mailboxRouter     from "./routes/mailbox.js";
 import marketplaceRouter from "./routes/marketplace.js";
@@ -26,6 +28,8 @@ app.use((req, _res, next) => {
 
 // Routes
 app.use("/api/backup",      backupRouter);
+app.use("/api/restore",     restoreRouter);
+app.use("/api/cleanup",     cleanupRouter);
 app.use("/api/analytics",   analyticsRouter);
 app.use("/api/mailbox",     mailboxRouter);
 app.use("/api/marketplace", marketplaceRouter);

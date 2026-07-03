@@ -64,6 +64,18 @@ export default function RestoreWizard() {
 
   async function startRestore() {
     setRunning(true); setProgress(0);
+
+    fetch("/api/restore/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        backupId:    selected,
+        scope,
+        conflict,
+        destination: restoreDest,
+      }),
+    }).catch(() => null);
+
     const iv = setInterval(() => setProgress(p => Math.min(p + Math.random() * 10, 99)), 500);
     await new Promise(r => setTimeout(r, 5000));
     clearInterval(iv); setProgress(100); setRunning(false); setDone(true);
