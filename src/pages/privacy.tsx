@@ -63,8 +63,7 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>As required by applicable law or legal process;</li>
-            <li>To protect the rights, property, or safety of Financial Data Analyzer or our users;</li>
-            <li>With Microsoft solely to verify your AppSource subscription status — only your Microsoft account identity token is used.</li>
+            <li>To protect the rights, property, or safety of Financial Data Analyzer or our users.</li>
           </ul>
         </section>
 

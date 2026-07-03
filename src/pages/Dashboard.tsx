@@ -1,8 +1,6 @@
-import { type AccountInfo } from "@azure/msal-browser";
 import { useQuery } from "@tanstack/react-query";
-import { type SubscriptionInfo } from "@/lib/auth";
+import { formatExpiry, type SubscriptionInfo } from "@/lib/license";
 import { type Tab } from "./tab-types";
-import { formatUserName } from "@/lib/auth";
 import {
   Archive, RotateCcw, Trash2, BarChart3, CheckCircle2,
   XCircle, Clock, AlertTriangle, RefreshCw, HardDrive,
@@ -11,9 +9,9 @@ import {
 import { Progress } from "@/components/ui/progress";
 
 interface Props {
-  account:      AccountInfo | null;
-  subscription: SubscriptionInfo | null;
-  onNavigate:   (tab: Tab) => void;
+  subscription:   SubscriptionInfo | null;
+  onNavigate:     (tab: Tab) => void;
+  onOpenSettings: () => void;
 }
 
 interface MailboxStats {
@@ -58,7 +56,7 @@ function fmtNum(n: number): string {
   return n.toLocaleString();
 }
 
-export default function Dashboard({ account, subscription, onNavigate }: Props) {
+export default function Dashboard({ subscription, onNavigate, onOpenSettings }: Props) {
   const { data: stats, isLoading: statsLoading } = useQuery<MailboxStats>({
     queryKey: ["/api/mailbox/stats"],
     staleTime: 60_000,
@@ -70,13 +68,12 @@ export default function Dashboard({ account, subscription, onNavigate }: Props) 
   });
 
   const isPro = subscription?.subscribed ?? false;
-  const name  = formatUserName(account).split(" ")[0];
 
   return (
     <div className="p-4 space-y-4 animate-fade-in-up">
       {/* Greeting */}
       <div>
-        <h2 className="text-base font-black">Hi, {name} 👋</h2>
+        <h2 className="text-base font-black">Welcome back 👋</h2>
         <p className="text-xs text-muted-foreground">Your mailbox is protected and monitored.</p>
       </div>
 
@@ -87,9 +84,13 @@ export default function Dashboard({ account, subscription, onNavigate }: Props) 
             <p className="text-xs font-black text-amber-800">Free Plan</p>
             <p className="text-[10px] text-amber-700">Upgrade to Pro for automated backups, encryption & more</p>
           </div>
-          <a href="/landing" className="text-[10px] font-black bg-amber-500 text-white px-3 py-1.5 rounded-lg shrink-0">
+          <button
+            onClick={onOpenSettings}
+            className="text-[10px] font-black bg-amber-500 text-white px-3 py-1.5 rounded-lg shrink-0"
+            data-testid="button-upgrade"
+          >
             Upgrade
-          </a>
+          </button>
         </div>
       )}
 
@@ -188,20 +189,17 @@ export default function Dashboard({ account, subscription, onNavigate }: Props) 
           <div className="flex items-center gap-2">
             <Shield className={`w-4 h-4 ${isPro ? "text-primary" : "text-muted-foreground"}`} />
             <div>
-              <p className="text-xs font-black">{isPro ? "Pro License" : "Free Plan"}</p>
-              {isPro && subscription?.seats && (
-                <p className="text-[10px] text-muted-foreground">{subscription.usedSeats ?? 1} of {subscription.seats} seats used</p>
+              <p className="text-xs font-black">{isPro ? subscription?.planLabel ?? "Pro License" : "Free Plan"}</p>
+              {isPro && (
+                <p className="text-[10px] text-muted-foreground">Expires: {formatExpiry(subscription?.expiresAt)}</p>
               )}
             </div>
           </div>
           {isPro
             ? <span className="text-[10px] status-badge-success px-2 py-0.5 rounded-full font-bold">Active</span>
-            : <a href="/landing" className="text-[10px] font-bold text-primary">Upgrade →</a>
+            : <button onClick={onOpenSettings} className="text-[10px] font-bold text-primary" data-testid="button-upgrade-inline">Upgrade →</button>
           }
         </div>
-        {isPro && subscription?.renewsAt && (
-          <p className="text-[10px] text-muted-foreground mt-1.5">Renews {subscription.renewsAt}</p>
-        )}
       </div>
     </div>
   );

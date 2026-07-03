@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   Shield, Check, Archive, RotateCcw, Trash2, BarChart3,
   Cloud, Lock, Star, Users, Building2, ChevronDown, ChevronRight,
-  Zap, Clock, Globe, ArrowRight, ExternalLink,
+  Zap, Clock, Globe, ArrowRight, KeyRound, Wallet,
 } from "lucide-react";
 
 const PLANS = [
@@ -19,7 +19,7 @@ const PLANS = [
     cta: "Download Free", highlighted: false, badge: null,
   },
   {
-    id: "monthly", name: "Pro Monthly", price: "$9.99", period: "/user/month",
+    id: "monthly", name: "Pro Monthly", price: "$9.99", period: "/month",
     desc: "Full-featured email protection",
     features: [
       "Unlimited mailboxes",
@@ -29,24 +29,21 @@ const PLANS = [
       "AI-powered analytics",
       "Multi-user & group support",
       "Priority email support",
-      "14-day free trial",
     ],
-    cta: "Start Free Trial", highlighted: false, badge: null,
+    cta: "Get License", highlighted: false, badge: null,
   },
   {
-    id: "annual", name: "Pro Annual", price: "$99.99", period: "/user/year",
+    id: "annual", name: "Pro Annual", price: "$99.99", period: "/year",
     desc: "Save 17% — best value for teams",
     features: [
       "Everything in Pro Monthly",
       "17% annual discount",
-      "Dedicated account manager",
       "Custom retention policies",
       "99.9% uptime SLA",
       "Advanced audit logs",
       "Volume seat discounts",
-      "Enterprise SSO support",
     ],
-    cta: "Start Free Trial", highlighted: true, badge: "BEST VALUE",
+    cta: "Get License", highlighted: true, badge: "BEST VALUE",
   },
 ];
 
@@ -58,7 +55,7 @@ const FEATURES = [
   { icon: Cloud,     title: "Multi-Cloud Storage",  desc: "Store backups on Local, Azure Blob, OneDrive, Amazon S3, Google Drive, or Dropbox — configure multiple destinations simultaneously." },
   { icon: Lock,      title: "AES-256 Encryption",   desc: "All backups are compressed and encrypted with AES-256-GCM before leaving your device. Your encryption keys, your data." },
   { icon: Clock,     title: "Retention Policies",   desc: "Define how long backups are kept — 30 days, 1 year, or forever. Automated pruning keeps storage costs in check." },
-  { icon: Zap,       title: "Instant Setup",        desc: "Install from Microsoft AppSource, sign in with your Microsoft account, and your first backup runs in under 2 minutes." },
+  { icon: Zap,       title: "Instant Activation",   desc: "Install the add-in, pay with USDT or enter a license key, and your first backup runs in under 2 minutes. No sign-in required." },
   { icon: Globe,     title: "Centralized IT Deployment", desc: "IT admins can deploy to the entire organization via Microsoft 365 Admin Center with zero user action required." },
 ];
 
@@ -68,7 +65,7 @@ const TESTIMONIALS = [
   { name: "Emma Wilson", title: "Office Manager · Northwind", body: "I'm not technical at all, but the setup wizard was incredibly simple. Scheduled backups just run — I never have to think about it.", stars: 5 },
 ];
 
-const COMPARE_ROWS = [
+const COMPARE_ROWS: { feature: string; mv: boolean | "partial"; manual: boolean | "partial"; others: boolean | "partial" }[] = [
   { feature: "Works inside Outlook",            mv: true,  manual: false, others: "partial" },
   { feature: "Automated scheduling",            mv: true,  manual: false, others: true },
   { feature: "AES-256 encryption at rest",      mv: true,  manual: false, others: "partial" },
@@ -76,8 +73,8 @@ const COMPARE_ROWS = [
   { feature: "Multi-cloud storage",             mv: true,  manual: false, others: true },
   { feature: "AI-powered analytics",            mv: true,  manual: false, others: false },
   { feature: "IT centralized deployment",       mv: true,  manual: false, others: "partial" },
-  { feature: "Microsoft AppSource billing",     mv: true,  manual: false, others: false },
-  { feature: "14-day free trial",               mv: true,  manual: false, others: "partial" },
+  { feature: "Pay with USDT or license key",    mv: true,  manual: false, others: false },
+  { feature: "No forced Microsoft sign-in",     mv: true,  manual: false, others: "partial" },
   { feature: "SOC 2 / GDPR ready",             mv: true,  manual: false, others: "partial" },
 ];
 
@@ -123,9 +120,8 @@ export default function LandingPage() {
           <a href="/deploy" className="hidden sm:flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground border border-border px-3 py-1.5 rounded-lg transition-colors">
             <Building2 className="w-3 h-3" /> Deploy
           </a>
-          <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
-            className="flex items-center gap-1.5 text-sm font-bold bg-primary text-white px-4 py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
-            Get on AppSource <ArrowRight className="w-3.5 h-3.5" />
+          <a href="/" className="flex items-center gap-1.5 text-sm font-bold bg-primary text-white px-4 py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
+            Open App <ArrowRight className="w-3.5 h-3.5" />
           </a>
         </div>
       </nav>
@@ -135,7 +131,7 @@ export default function LandingPage() {
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-xs font-bold mb-2">
             <Star className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300" />
-            <span>4.9 / 5 on Microsoft AppSource · 500+ organizations</span>
+            <span>4.9 / 5 · 500+ organizations</span>
           </div>
           <div className="w-20 h-20 rounded-3xl bg-white/20 backdrop-blur-sm flex items-center justify-center mx-auto shadow-2xl">
             <Shield className="w-10 h-10 text-white" />
@@ -144,23 +140,21 @@ export default function LandingPage() {
             Enterprise Email Backup<br />for Microsoft 365
           </h1>
           <p className="text-lg sm:text-xl text-blue-100 max-w-2xl mx-auto leading-relaxed">
-            MailVault Pro backs up, encrypts, and restores your Outlook emails — automatically,
-            securely, and directly inside Outlook. No separate app. No extra login.
+            MailVault Pro backs up, encrypts, and restores your Outlook emails — automatically
+            and securely, directly inside Outlook. No sign-in wall, no third-party billing portal.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
+            <a href="#pricing"
               className="flex items-center justify-center gap-2 bg-white text-primary font-black px-8 py-3.5 rounded-xl hover:bg-blue-50 transition-colors shadow-lg text-sm">
-              <svg className="w-4 h-4" viewBox="0 0 21 21" fill="none">
-                <path d="M0 0h10v10H0zM11 0h10v10H11zM0 11h10v10H0zM11 11h10v10H11z" fill="currentColor" opacity=".7"/>
-              </svg>
-              Get Free Trial on AppSource
+              <Wallet className="w-4 h-4" />
+              Pay with USDT or Use a License Key
             </a>
             <a href="#how"
               className="flex items-center justify-center gap-2 bg-white/10 text-white font-bold px-8 py-3.5 rounded-xl hover:bg-white/20 transition-colors border border-white/20 text-sm">
               See How It Works
             </a>
           </div>
-          <p className="text-sm text-blue-200">14-day free trial · No credit card required · Cancel anytime</p>
+          <p className="text-sm text-blue-200">Pay once with USDT · No recurring billing · License keys never expire unless you choose a term</p>
         </div>
       </section>
 
@@ -173,7 +167,7 @@ export default function LandingPage() {
             "GDPR Compliant",
             "AES-256-GCM Encrypted",
             "99.9% Uptime SLA",
-            "AppSource Verified",
+            "Instant Activation",
           ].map(t => (
             <div key={t} className="flex items-center gap-1.5">
               <Check className="w-3.5 h-3.5 text-green-600 shrink-0" />
@@ -190,7 +184,7 @@ export default function LandingPage() {
             { value: "500+",   label: "Organizations" },
             { value: "50K+",   label: "Mailboxes backed up" },
             { value: "99.9%",  label: "Uptime SLA" },
-            { value: "4.9★",   label: "AppSource rating" },
+            { value: "4.9★",   label: "Customer rating" },
           ].map(({ value, label }) => (
             <div key={label}>
               <p className="text-3xl font-black text-primary mb-1">{value}</p>
@@ -206,7 +200,7 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <p className="text-xs font-bold text-primary mb-2 uppercase tracking-wide">Features</p>
             <h2 className="text-3xl font-black mb-3">Everything you need to protect your email</h2>
-            <p className="text-muted-foreground text-sm max-w-xl mx-auto">Works directly inside Outlook — no separate app to install, no new login to remember.</p>
+            <p className="text-muted-foreground text-sm max-w-xl mx-auto">Works directly inside Outlook — no separate app to install, no forced sign-in to remember.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {FEATURES.map(({ icon: Icon, title, desc }) => (
@@ -228,13 +222,13 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <p className="text-xs font-bold text-primary mb-2 uppercase tracking-wide">How it works</p>
             <h2 className="text-3xl font-black mb-3">Up and running in minutes</h2>
-            <p className="text-muted-foreground text-sm">For IT admins — deploy to your whole organization in 3 steps.</p>
+            <p className="text-muted-foreground text-sm">Three simple steps — no Microsoft account required to unlock Pro.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { n: "1", icon: ExternalLink, title: "Purchase on AppSource", desc: "Select your plan and number of seats. Microsoft handles billing — the subscription appears in your M365 Admin Center." },
-              { n: "2", icon: Users,        title: "Deploy to users",        desc: "Use Centralized Deployment in Settings → Integrated Apps to push the add-in to users or groups — zero user action needed." },
-              { n: "3", icon: Shield,       title: "Users sign in & go",     desc: "Users open Outlook, click MailVault Pro in the ribbon, sign in with Microsoft, and their first backup starts automatically." },
+              { n: "1", icon: Wallet,    title: "Pay with USDT or get a key", desc: "Send USDT to our wallet and submit your transaction hash, or receive a license key directly from your administrator." },
+              { n: "2", icon: Users,     title: "Deploy to users",        desc: "Use Centralized Deployment in Settings → Integrated Apps to push the add-in to users or groups — zero user action needed." },
+              { n: "3", icon: KeyRound,  title: "Enter your license key & go", desc: "Open MailVault Pro in the ribbon, enter your license key in Settings, and your first backup starts automatically." },
             ].map(({ n, icon: Icon, title, desc }) => (
               <div key={n} className="text-center">
                 <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/20">
@@ -286,7 +280,7 @@ export default function LandingPage() {
           <div className="text-center mb-10">
             <p className="text-xs font-bold text-primary mb-2 uppercase tracking-wide">Pricing</p>
             <h2 className="text-3xl font-black mb-3">Simple, transparent pricing</h2>
-            <p className="text-muted-foreground text-sm">Available exclusively on Microsoft AppSource. Billed and managed by Microsoft.</p>
+            <p className="text-muted-foreground text-sm">Pay once with USDT or redeem a license key issued by your administrator. No recurring Microsoft billing.</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-5">
             {PLANS.map(plan => (
@@ -312,7 +306,7 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
-                <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
+                <a href="#how"
                   className={`block text-center font-black text-sm py-2.5 rounded-xl transition-colors ${
                     plan.highlighted ? "bg-white text-primary hover:bg-blue-50" : "bg-primary text-white hover:bg-primary/90"
                   }`}>
@@ -322,12 +316,12 @@ export default function LandingPage() {
             ))}
           </div>
           <p className="text-center text-xs text-muted-foreground mt-5">
-            Subscriptions managed entirely through Microsoft AppSource. No third-party billing portal.
+            Pay once with USDT — no recurring subscriptions, no third-party billing portal.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
-            <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
+            <a href="/"
               className="inline-flex items-center justify-center gap-2 text-xs font-bold text-primary border border-primary/20 bg-primary/5 px-4 py-2 rounded-lg hover:bg-primary/10 transition-colors">
-              <ExternalLink className="w-3.5 h-3.5" /> View on Microsoft AppSource
+              <Wallet className="w-3.5 h-3.5" /> Open the app to pay with USDT
             </a>
             <a href="mailto:enterprise@mailvault.app"
               className="inline-flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground border border-border px-4 py-2 rounded-lg hover:bg-muted transition-colors">
@@ -395,13 +389,13 @@ export default function LandingPage() {
           </div>
           <div className="bg-white border border-border rounded-2xl px-6">
             <FaqItem q="Does MailVault Pro require a separate login?">
-              No. You sign in with your existing Microsoft account — the same one you use for Outlook. No new account or password.
+              No. MailVault Pro opens directly inside Outlook — there's no Microsoft sign-in wall. To unlock Pro features, pay with USDT or enter a license key issued by your administrator.
             </FaqItem>
             <FaqItem q="Where are my backups stored?">
               You choose: Local disk, Azure Blob Storage, OneDrive, Amazon S3, Google Drive, or Dropbox. We never store your email content on our own servers.
             </FaqItem>
             <FaqItem q="Is there a free trial?">
-              Yes — all Pro plans include a 14-day free trial. No credit card required. Cancel anytime from Microsoft AppSource.
+              The Free plan lets you try core backup features immediately. Upgrading to Pro is a one-time USDT payment or a license key — no recurring billing, cancel anytime by simply not renewing.
             </FaqItem>
             <FaqItem q="Can IT admins deploy to the whole organization?">
               Yes. Use Microsoft 365 Admin Center Centralized Deployment or PowerShell. The add-in appears in users' Outlook ribbons automatically — no user action needed. See the <a href="/deploy" className="text-primary font-bold hover:underline">IT Admin Deployment Guide</a>.
@@ -410,7 +404,7 @@ export default function LandingPage() {
               Outlook 2016+, Microsoft 365 Apps, Outlook on the web, Outlook for iOS, and Outlook for Android. New Outlook for Windows is also supported.
             </FaqItem>
             <FaqItem q="How is billing handled?">
-              Entirely through Microsoft AppSource — the same way you pay for other Microsoft 365 add-ons. No third-party payment portal or separate billing system.
+              Pay directly with USDT to the wallet address shown in the app, then submit your transaction hash for verification. Alternatively, redeem a license key issued by your administrator. No third-party payment portal.
             </FaqItem>
           </div>
         </div>
@@ -422,19 +416,19 @@ export default function LandingPage() {
           <h2 className="text-3xl font-black">Ready to protect your email?</h2>
           <p className="text-blue-100 text-sm leading-relaxed">
             Join 500+ organizations that trust MailVault Pro to back up, restore,
-            and secure their Microsoft 365 email. Start your 14-day free trial today.
+            and secure their Microsoft 365 email.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
+            <a href="/"
               className="flex items-center justify-center gap-2 bg-white text-primary font-black px-8 py-3.5 rounded-xl hover:bg-blue-50 transition-colors shadow-lg text-sm">
-              Get it Free on Microsoft AppSource
+              Get Started — Pay with USDT
             </a>
             <a href="/deploy"
               className="flex items-center justify-center gap-2 bg-white/10 text-white font-bold px-8 py-3.5 rounded-xl hover:bg-white/20 transition-colors border border-white/20 text-sm">
               <Building2 className="w-4 h-4" /> IT Admin Guide
             </a>
           </div>
-          <p className="text-xs text-blue-200">14-day free trial · No credit card required · Billed by Microsoft</p>
+          <p className="text-xs text-blue-200">No recurring billing · No forced sign-in · Instant activation with a license key</p>
         </div>
       </section>
 
@@ -450,7 +444,7 @@ export default function LandingPage() {
                 <span className="font-black text-sm">MailVault Pro</span>
               </div>
               <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                Enterprise email backup & recovery built for Microsoft 365. Available exclusively on Microsoft AppSource.
+                Enterprise email backup & recovery built for Microsoft 365. Pay with USDT or a license key — no forced sign-in.
               </p>
             </div>
             <div className="flex gap-12 text-xs">
@@ -460,7 +454,6 @@ export default function LandingPage() {
                   <a href="#features" className="block hover:text-foreground">Features</a>
                   <a href="#pricing"  className="block hover:text-foreground">Pricing</a>
                   <a href="#compare"  className="block hover:text-foreground">Compare</a>
-                  <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer" className="block hover:text-foreground">AppSource</a>
                 </div>
               </div>
               <div className="space-y-2">
@@ -487,8 +480,6 @@ export default function LandingPage() {
             <div className="flex items-center gap-1.5">
               <Check className="w-3.5 h-3.5 text-green-600" />
               <span>Microsoft 365 Certified Add-in</span>
-              <span className="mx-1">·</span>
-              <span>Published on Microsoft AppSource</span>
             </div>
           </div>
         </div>

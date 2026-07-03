@@ -105,10 +105,6 @@ export default function DeploymentGuide() {
           <span className="text-sm font-bold text-muted-foreground">IT Admin Deployment Guide</span>
         </div>
         <div className="flex items-center gap-3">
-          <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
-            className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-primary hover:underline">
-            Get on AppSource <ExternalLink className="w-3 h-3" />
-          </a>
           <a href="/landing"
             className="text-xs font-bold bg-muted px-3 py-1.5 rounded-lg hover:bg-border transition-colors">
             ← Back to Product
@@ -152,21 +148,22 @@ export default function DeploymentGuide() {
                 <h1 className="text-2xl font-black mb-3">MailVault Pro Deployment Guide</h1>
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   This guide covers everything your IT team needs to deploy MailVault Pro for Outlook
-                  across your Microsoft 365 organization — from AppSource licensing to centralized
-                  add-in deployment, webhook configuration, and ongoing management.
+                  across your organization — from self-hosting the add-in to centralized
+                  manifest deployment, licensing, and ongoing management.
                 </p>
               </div>
 
               <Callout type="info">
-                MailVault Pro is distributed exclusively through <strong>Microsoft AppSource</strong>.
-                Licensing is managed by Microsoft — no separate billing portal required.
+                MailVault Pro is <strong>self-hosted</strong> — you deploy the manifest yourself, and
+                licensing is unlocked with a one-time <strong>USDT payment</strong> or an
+                <strong> admin-issued license key</strong>. No external marketplace or billing portal required.
               </Callout>
 
               <div className="grid sm:grid-cols-3 gap-4">
                 {[
                   { icon: Building2, title: "Centralized Deployment", desc: "Push to all users or selected groups via Microsoft 365 Admin Center — no user action needed." },
-                  { icon: Users,     title: "Seat-Based Licensing",   desc: "Subscribe to the number of seats you need. Microsoft handles billing and renewals through AppSource." },
-                  { icon: Lock,      title: "Zero-Trust Security",    desc: "MSAL OAuth only — no passwords stored. AES-256-GCM encryption at rest. SOC 2 Type II ready." },
+                  { icon: Users,     title: "License-Based Access",   desc: "Unlock Pro with a USDT payment or a license key issued from your own admin portal." },
+                  { icon: Lock,      title: "Zero-Trust Security",    desc: "No third-party sign-in required. AES-256-GCM encryption at rest. Admin password gates the settings portal." },
                 ].map(({ icon: Icon, title, desc }) => (
                   <div key={title} className="border border-border rounded-xl p-4 bg-white">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
@@ -180,11 +177,11 @@ export default function DeploymentGuide() {
 
               <div className="bg-white border border-border rounded-xl divide-y text-sm">
                 {[
-                  { step: "1", label: "Purchase on AppSource",         time: "5 min"  },
-                  { step: "2", label: "Assign seats in Admin Center",  time: "10 min" },
-                  { step: "3", label: "Deploy add-in to users/groups", time: "5 min"  },
-                  { step: "4", label: "Configure webhook (optional)",   time: "15 min" },
-                  { step: "5", label: "Users sign in & start backup",   time: "2 min"  },
+                  { step: "1", label: "Deploy the app and add-in manifest", time: "5 min"  },
+                  { step: "2", label: "Set your admin password & wallet",   time: "5 min" },
+                  { step: "3", label: "Deploy add-in to users/groups",      time: "5 min"  },
+                  { step: "4", label: "Issue license keys or accept USDT",  time: "10 min" },
+                  { step: "5", label: "Users unlock Pro & start backup",    time: "2 min"  },
                 ].map(row => (
                   <div key={row.step} className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -201,9 +198,9 @@ export default function DeploymentGuide() {
                   className="flex items-center gap-2 bg-primary text-white font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-primary/90 transition-colors">
                   Start: Prerequisites <ChevronRight className="w-4 h-4" />
                 </button>
-                <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
+                <a href="/admin"
                   className="flex items-center gap-2 border border-border font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-muted transition-colors">
-                  AppSource Listing <ExternalLink className="w-3.5 h-3.5" />
+                  Open Admin Portal <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
             </div>
@@ -223,10 +220,10 @@ export default function DeploymentGuide() {
                   { label: "Microsoft 365 Global Administrator or Exchange Administrator role", required: true },
                   { label: "Microsoft 365 Business Basic, Standard, Premium, E1, E3, or E5 subscription", required: true },
                   { label: "Outlook 2016 or later (desktop), Outlook on the web, or Outlook mobile (iOS/Android)", required: true },
-                  { label: "Azure Active Directory (Entra ID) tenant — provided with any M365 subscription", required: true },
-                  { label: "MailVault Pro AppSource subscription — purchased per-seat", required: true },
+                  { label: "A hosted deployment of MailVault Pro (e.g. on Replit) with a public HTTPS URL", required: true },
+                  { label: "An admin password set for the settings portal (and a USDT wallet address if accepting crypto payments)", required: true },
                   { label: "Azure Blob Storage, AWS S3, or OneDrive for cloud backup storage", required: false },
-                  { label: "Server for webhook endpoint (for automated lifecycle events)", required: false },
+                  { label: "SMTP server for renewal reminder emails (optional, configured in the admin portal)", required: false },
                 ].map(({ label, required }) => (
                   <div key={label} className="flex items-start gap-3 bg-white border border-border rounded-xl px-4 py-3">
                     <CheckCircle2 className={`w-4 h-4 mt-0.5 shrink-0 ${required ? "text-primary" : "text-muted-foreground"}`} />
@@ -284,24 +281,24 @@ export default function DeploymentGuide() {
               </Callout>
 
               <div className="space-y-1">
-                <Step n={1} title="Purchase MailVault Pro on AppSource">
-                  <p>Visit <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer" className="text-primary font-bold hover:underline">Microsoft AppSource</a> and search for <strong>MailVault Pro for Outlook</strong>.</p>
-                  <p>Select your plan (Monthly or Annual) and the number of seats. You will be billed by Microsoft.</p>
-                  <p>After purchase, the subscription will appear in your Microsoft 365 Admin Center under <strong>Billing → Your products</strong>.</p>
+                <Step n={1} title="Deploy MailVault Pro and configure billing">
+                  <p>Deploy the app (e.g. to a Replit deployment or your own hosting) so it has a public HTTPS URL.</p>
+                  <p>Open <strong>/admin</strong>, set your admin password, and configure your USDT wallet address and plan pricing under Billing Settings.</p>
+                  <p>Users unlock Pro either by paying USDT directly in the app, or by redeeming a license key you issue from the admin portal.</p>
                 </Step>
 
-                <Step n={2} title="Assign seats to users or groups">
+                <Step n={2} title="Upload the custom app to Microsoft 365">
                   <p>In the <a href="https://admin.microsoft.com" target="_blank" rel="noreferrer" className="text-primary font-bold hover:underline">Microsoft 365 Admin Center</a>, go to:</p>
-                  <CodeBlock lang="path" code="Billing → Your products → MailVault Pro → Assign users" />
-                  <p>Assign seats individually, by group, or to the entire organization. Only licensed users can access Pro features.</p>
+                  <CodeBlock lang="path" code="Settings → Integrated apps → Upload custom apps" />
+                  <p>This uploads your own manifest directly — no marketplace listing or Microsoft billing is involved.</p>
                 </Step>
 
-                <Step n={3} title="Deploy the add-in via Integrated Apps">
-                  <p>Navigate to:</p>
-                  <CodeBlock lang="path" code="Settings → Integrated apps → Get apps → Search: MailVault Pro" />
-                  <p>Select <strong>MailVault Pro for Outlook</strong> from the AppSource results. Choose your deployment scope:</p>
+                <Step n={3} title="Provide the manifest URL">
+                  <p>When prompted, provide the URL to your hosted manifest file:</p>
+                  <CodeBlock lang="url" code="https://your-app.replit.app/manifest.xml" />
+                  <p>Choose your deployment scope:</p>
                   <ul className="list-disc list-inside space-y-1 mt-1">
-                    <li><strong>Entire organization</strong> — all current and future licensed users</li>
+                    <li><strong>Entire organization</strong> — all current and future users</li>
                     <li><strong>Specific users/groups</strong> — recommended for phased rollouts</li>
                     <li><strong>Just me</strong> — for admin testing only</li>
                   </ul>
@@ -314,7 +311,7 @@ export default function DeploymentGuide() {
                     <li><code className="bg-muted px-1 rounded">Mail.ReadWrite</code> — restore and cleanup emails</li>
                     <li><code className="bg-muted px-1 rounded">MailboxSettings.Read</code> — read mailbox configuration</li>
                   </ul>
-                  <p>Click <strong>Accept permissions and deploy</strong>. The add-in will be available to users within <strong>12–24 hours</strong> (Microsoft propagation time).</p>
+                  <p>Click <strong>Deploy</strong>. The add-in will be available to users within <strong>12–24 hours</strong> (Microsoft propagation time).</p>
                 </Step>
 
                 <Step n={5} title="Verify deployment">
@@ -388,7 +385,7 @@ export default function DeploymentGuide() {
                 <h1 className="text-2xl font-black mb-2">Manifest Reference</h1>
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   The <code className="bg-muted px-1 rounded text-xs">manifest.xml</code> file registers MailVault Pro with Outlook.
-                  When deployed via AppSource, Microsoft hosts and manages the manifest automatically.
+                  Since MailVault Pro is self-hosted, you host and serve this manifest yourself from your deployment domain.
                   For sideloading or custom enterprise deployment, use the template below.
                 </p>
               </div>
@@ -460,20 +457,10 @@ export default function DeploymentGuide() {
 
               {[
                 {
-                  group: "Azure AD / MSAL (Required for production login)",
+                  group: "Admin & Billing (Required)",
                   vars: [
-                    { name: "VITE_AZURE_CLIENT_ID",   example: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", desc: "Azure AD app registration Client ID" },
-                    { name: "VITE_AZURE_TENANT_ID",   example: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", desc: "Your Azure AD tenant ID (or 'common' for multi-tenant)" },
-                    { name: "VITE_AZURE_REDIRECT_URI", example: "https://your-app.replit.app/",       desc: "Must match redirect URI in Azure app registration" },
-                  ],
-                },
-                {
-                  group: "Microsoft Marketplace SaaS Fulfillment (Required for paid subscriptions)",
-                  vars: [
-                    { name: "AZURE_TENANT_ID",         example: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", desc: "AAD tenant ID for server-side Graph API calls" },
-                    { name: "AZURE_CLIENT_ID",         example: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", desc: "Service principal Client ID" },
-                    { name: "AZURE_CLIENT_SECRET",     example: "your-client-secret",                  desc: "Service principal Client Secret (keep secret!)" },
-                    { name: "MARKETPLACE_WEBHOOK_SECRET", example: "your-webhook-secret",              desc: "Shared secret to validate webhook signatures" },
+                    { name: "ADMIN_PASSWORD",      example: "supersecret123", desc: "Server-side admin route authentication — protects settings, licenses, and payments" },
+                    { name: "VITE_ADMIN_PASSWORD", example: "supersecret123", desc: "Client-side admin portal password gate (should match ADMIN_PASSWORD)" },
                   ],
                 },
                 {
@@ -485,13 +472,6 @@ export default function DeploymentGuide() {
                     { name: "AWS_SECRET_ACCESS_KEY",           example: "wJalrXUtnFEMI/K7MDENG/…",        desc: "AWS Secret Key (keep secret!)" },
                     { name: "AWS_REGION",                      example: "us-east-1",                       desc: "AWS region for S3 bucket" },
                     { name: "S3_BUCKET",                       example: "my-mailvault-backups",            desc: "S3 bucket name for backup storage" },
-                  ],
-                },
-                {
-                  group: "Admin Portal",
-                  vars: [
-                    { name: "VITE_ADMIN_PASSWORD", example: "supersecret123", desc: "Client-side admin portal password gate" },
-                    { name: "ADMIN_PASSWORD",      example: "supersecret123", desc: "Server-side admin route authentication" },
                   ],
                 },
                 {
@@ -530,7 +510,7 @@ export default function DeploymentGuide() {
               <Callout type="warning">
                 <strong>Security:</strong> Never commit secrets to source control. Use Replit Secrets
                 (or your deployment platform's secret manager) to store all credentials.
-                Client Secret and AWS keys should only ever live in server-side env vars.
+                AWS keys and SMTP credentials should only ever live in server-side env vars.
               </Callout>
             </div>
           )}
@@ -539,58 +519,54 @@ export default function DeploymentGuide() {
           {section === "webhook" && (
             <div className="space-y-6 animate-fade-in-up">
               <div>
-                <p className="text-xs text-primary font-bold mb-1">Marketplace Integration</p>
-                <h1 className="text-2xl font-black mb-2">Marketplace Webhooks</h1>
+                <p className="text-xs text-primary font-bold mb-1">Notifications</p>
+                <h1 className="text-2xl font-black mb-2">Payment & Renewal Webhooks</h1>
                 <p className="text-muted-foreground text-sm leading-relaxed">
-                  Microsoft sends lifecycle event webhooks to your server when subscriptions change —
-                  new subscriptions, cancellations, plan changes, seat adjustments, and renewals.
-                  Your endpoint must respond within 10 seconds with HTTP 200.
+                  MailVault Pro can send outgoing webhook notifications for billing events — new USDT
+                  payment submissions, approvals, and upcoming license expirations. Configure the
+                  webhook URL from the admin portal's Billing Settings panel; no incoming
+                  endpoint is required since there's no external marketplace to integrate with.
                 </p>
               </div>
 
               <div className="bg-white border border-border rounded-xl p-4 space-y-2">
-                <p className="text-xs font-black">Webhook endpoint</p>
-                <CodeBlock lang="url" code="POST https://your-app.replit.app/api/marketplace/webhook" />
+                <p className="text-xs font-black">Configure in Admin Portal</p>
+                <CodeBlock lang="path" code="/admin → Billing Settings → Notification webhook URL" />
               </div>
 
               <div>
-                <p className="text-sm font-black mb-3">Registering the webhook in Partner Center</p>
+                <p className="text-sm font-black mb-3">Setting the webhook in the Admin Portal</p>
                 <div className="space-y-1">
-                  <Step n={1} title="Open Partner Center">
-                    <p>Go to <a href="https://partner.microsoft.com" target="_blank" rel="noreferrer" className="text-primary font-bold hover:underline">partner.microsoft.com</a> → <strong>Marketplace offers → Your offer → Technical configuration</strong>.</p>
+                  <Step n={1} title="Open Billing Settings">
+                    <p>Go to <strong>/admin → Billing Settings</strong> in your deployed app.</p>
                   </Step>
                   <Step n={2} title="Enter the webhook URL">
-                    <p>In the <strong>Connection webhook</strong> field, enter your endpoint URL:</p>
-                    <CodeBlock lang="url" code="https://your-app.replit.app/api/marketplace/webhook" />
+                    <p>In the <strong>Notification webhook</strong> field, enter the endpoint you want to receive events at (e.g. a Slack/Discord incoming webhook or your own server):</p>
+                    <CodeBlock lang="url" code="https://your-endpoint.example.com/mailvault-events" />
                   </Step>
-                  <Step n={3} title="Set the webhook secret">
-                    <p>Generate a strong secret and add it to your server as <code className="bg-muted px-1 rounded">MARKETPLACE_WEBHOOK_SECRET</code>.
-                    Microsoft will sign each webhook payload — your server validates the signature before processing.</p>
+                  <Step n={3} title="Enable reminders (optional)">
+                    <p>Toggle <strong>Reminders Enabled</strong> and set how many days before expiration a license renewal reminder should fire.</p>
                   </Step>
                 </div>
               </div>
 
               <div>
-                <p className="text-sm font-black mb-2">Supported webhook events</p>
+                <p className="text-sm font-black mb-2">Events sent to your webhook</p>
                 <div className="bg-white border border-border rounded-xl overflow-hidden">
                   <table className="w-full text-xs">
                     <thead className="bg-muted">
                       <tr>
-                        <th className="px-4 py-2 text-left font-bold text-muted-foreground">Action</th>
+                        <th className="px-4 py-2 text-left font-bold text-muted-foreground">Event</th>
                         <th className="px-4 py-2 text-left font-bold text-muted-foreground">Trigger</th>
-                        <th className="px-4 py-2 text-left font-bold text-muted-foreground">Your response</th>
+                        <th className="px-4 py-2 text-left font-bold text-muted-foreground">Typical use</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {[
-                        { action: "Subscribed",             trigger: "New subscription created",           response: "Grant user access" },
-                        { action: "Unsubscribed",           trigger: "Subscription cancelled",             response: "Revoke access, retain data 30 days" },
-                        { action: "SuspendedDueToOverdue",  trigger: "Payment overdue",                    response: "Downgrade to read-only" },
-                        { action: "Reinstated",             trigger: "Payment cleared",                    response: "Restore full access" },
-                        { action: "ChangePlan",             trigger: "User upgraded/downgraded plan",      response: "Update features/limits" },
-                        { action: "ChangeQuantity",         trigger: "Seat count changed",                 response: "Update seat limit" },
-                        { action: "Renewed",                trigger: "Subscription renewed",               response: "Update renewal date" },
-                        { action: "Transferred",            trigger: "Subscription transferred to new tenant", response: "Update owner record" },
+                        { action: "payment.submitted", trigger: "User submits a USDT transaction hash",  response: "Notify admin to review & approve" },
+                        { action: "payment.approved",   trigger: "Admin approves a payment",              response: "License issued automatically" },
+                        { action: "license.redeemed",   trigger: "User redeems a license key",            response: "Track activation" },
+                        { action: "license.expiring",   trigger: "License nears its expiration date",     response: "Send renewal reminder" },
                       ].map(row => (
                         <tr key={row.action}>
                           <td className="px-4 py-2.5 font-mono font-bold text-[11px]">{row.action}</td>
@@ -603,32 +579,10 @@ export default function DeploymentGuide() {
                 </div>
               </div>
 
-              <CodeBlock lang="javascript" code={`// server/routes/marketplace.js — webhook handler
-router.post("/webhook", (req, res) => {
-  // 1. Validate Microsoft's signature
-  const sig = req.headers["x-ms-marketplace-signature"];
-  if (!validateSignature(sig, req.rawBody, process.env.MARKETPLACE_WEBHOOK_SECRET)) {
-    return res.status(401).json({ error: "Invalid signature" });
-  }
-
-  const { action, subscriptionId, planId, quantity } = req.body;
-
-  switch (action) {
-    case "Subscribed":
-      // Grant access, create DB record, send welcome email
-      break;
-    case "Unsubscribed":
-      // Revoke access, mark cancelled, schedule data cleanup
-      break;
-    case "SuspendedDueToOverdue":
-      // Downgrade to read-only mode
-      break;
-    // ... other cases
-  }
-
-  // Must respond 200 within 10 seconds
-  res.json({ status: "ok", action, subscriptionId });
-});`} />
+              <Callout type="info">
+                Webhook delivery is best-effort — always cross-check pending payments and license
+                status directly in the admin portal rather than relying solely on notifications.
+              </Callout>
             </div>
           )}
 
@@ -639,9 +593,9 @@ router.post("/webhook", (req, res) => {
                 <p className="text-xs text-primary font-bold mb-1">Advanced</p>
                 <h1 className="text-2xl font-black mb-2">PowerShell Deployment</h1>
                 <p className="text-muted-foreground text-sm leading-relaxed">
-                  For large organizations or automated CI/CD pipelines, deploy MailVault Pro via
+                  For large organizations or automated CI/CD pipelines, deploy the MailVault Pro manifest via
                   the Exchange Online PowerShell module. This is equivalent to Centralized Deployment
-                  but scriptable.
+                  but scriptable, and does not require any external marketplace listing.
                 </p>
               </div>
 
@@ -708,7 +662,7 @@ Remove-App -Identity $app.AppId -OrganizationApp -Confirm:$false`} />
                   <p>Microsoft typically propagates add-ins within 12–24 hours. If a user doesn't see the add-in after 24 hours, ask them to restart Outlook. For Outlook on the web, it usually appears within 30 minutes.</p>
                 </FaqItem>
                 <FaqItem q="Can users install the add-in themselves without IT?">
-                  <p>Yes — users can search for and install MailVault Pro directly from AppSource within Outlook (Home → Get Add-ins). However, they will only get the Free tier unless an admin has assigned them a Pro license.</p>
+                  <p>Yes — if you sideload the manifest and share it, individual users can add it via Outlook's "Add a custom add-in" flow. They will only get the Free tier until they pay with USDT or redeem a license key you issue.</p>
                 </FaqItem>
                 <FaqItem q="What data does MailVault Pro store and where?">
                   <p>Backups are stored in the cloud storage provider you configure (Azure Blob, S3, OneDrive, etc.) — we never store email content on our servers. AES-256-GCM encryption is applied before data leaves the user's session. No email content passes through our API.</p>
@@ -722,11 +676,11 @@ Remove-App -Identity $app.AppId -OrganizationApp -Confirm:$false`} />
                 <FaqItem q="Does the add-in work in Outlook mobile?">
                   <p>The add-in panel is available in Outlook for iOS and Android. However, some advanced features (scheduled backup, cleanup) are optimized for desktop and web Outlook. We recommend desktop/OWA for the best experience.</p>
                 </FaqItem>
-                <FaqItem q="What happens when a subscription expires?">
-                  <p>The add-in remains installed but Pro features are locked. Users can still access the Dashboard and their most recent backup summary. To restore full access, renew the subscription through Microsoft AppSource — no reinstallation needed.</p>
+                <FaqItem q="What happens when a license expires?">
+                  <p>The add-in remains installed but Pro features are locked. Users can still access the Dashboard and their most recent backup summary. To restore full access, pay again with USDT or redeem a new license key — no reinstallation needed.</p>
                 </FaqItem>
-                <FaqItem q="Can I trial before purchasing for the whole organization?">
-                  <p>Yes — purchase 1 seat and deploy to a pilot group first. After validating, purchase additional seats and expand the deployment scope. All settings and backups are preserved when upgrading seats.</p>
+                <FaqItem q="Can I trial before rolling out to the whole organization?">
+                  <p>Yes — deploy and sideload to a pilot group first. After validating, expand the deployment scope to the rest of the organization. All settings and backups are preserved as you scale up.</p>
                 </FaqItem>
                 <FaqItem q="How do I get enterprise pricing or volume discounts?">
                   <p>Contact us at <a href="mailto:enterprise@mailvault.app" className="text-primary font-bold hover:underline">enterprise@mailvault.app</a> for organizations with 100+ seats. We also offer custom SLAs, dedicated support, and custom data retention policies.</p>

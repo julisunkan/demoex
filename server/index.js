@@ -5,7 +5,7 @@ import restoreRouter     from "./routes/restore.js";
 import cleanupRouter     from "./routes/cleanup.js";
 import analyticsRouter   from "./routes/analytics.js";
 import mailboxRouter     from "./routes/mailbox.js";
-import marketplaceRouter from "./routes/marketplace.js";
+import billingRouter     from "./routes/billing.js";
 import adminRouter       from "./routes/admin.js";
 import settingsRouter    from "./routes/settings.js";
 
@@ -32,7 +32,7 @@ app.use("/api/restore",     restoreRouter);
 app.use("/api/cleanup",     cleanupRouter);
 app.use("/api/analytics",   analyticsRouter);
 app.use("/api/mailbox",     mailboxRouter);
-app.use("/api/marketplace", marketplaceRouter);
+app.use("/api/billing",     billingRouter);
 app.use("/api/admin",       adminRouter);
 app.use("/api/settings",    settingsRouter);
 
@@ -52,10 +52,9 @@ app.use((err, _req, res, _next) => {
 app.listen(PORT, HOST, () => {
   console.log(`🛡️  MailVault Pro API → http://localhost:${PORT}`);
 
-  const azureReady = !!(process.env.AZURE_TENANT_ID && process.env.AZURE_CLIENT_ID && process.env.AZURE_CLIENT_SECRET);
-  if (azureReady) {
-    console.log("✅ Azure credentials configured — Microsoft Graph & Marketplace API ready");
+  if (process.env.ADMIN_PASSWORD) {
+    console.log("✅ Admin password configured — admin portal protected");
   } else {
-    console.warn("⚠️  Azure credentials not set (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET). Running in demo mode.");
+    console.warn("⚠️  ADMIN_PASSWORD not set. Admin portal is open to anyone. Set it before going to production.");
   }
 });

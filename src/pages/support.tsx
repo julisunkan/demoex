@@ -4,13 +4,13 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
 const FAQS = [
-  { q: "How do I set up my first backup?", a: "Open the add-in in Outlook, sign in with your Microsoft account, tap 'Backup' in the bottom nav, and follow the 6-step wizard. You can select folders, set filters, choose a storage destination, enable encryption, and schedule automatic backups." },
+  { q: "How do I set up my first backup?", a: "Open the add-in in Outlook, tap 'Backup' in the bottom nav, and follow the 6-step wizard. You can select folders, set filters, choose a storage destination, enable encryption, and schedule automatic backups." },
   { q: "What email folders can I back up?", a: "You can back up Inbox, Sent Items, Archive, Drafts, Deleted Items, Junk Email, and any custom folders you have created in Outlook." },
   { q: "Is my backup encrypted?", a: "Pro users can enable AES-256-GCM encryption with a custom password. Encrypted backups cannot be read without the password, which is never stored on our servers." },
   { q: "Which cloud storage providers are supported?", a: "Pro plan supports Azure Blob Storage, OneDrive, Amazon S3, Google Drive, and Dropbox. Free plan supports local storage only." },
   { q: "How do I restore emails from a backup?", a: "Go to the Restore tab in the add-in, select a backup, choose your scope (full, folder, or individual emails), set conflict resolution, and click Start Restore." },
   { q: "Can I schedule automatic backups?", a: "Yes — Pro users can set up daily, weekly, or monthly scheduled backups with a custom time. Free users can run manual backups only." },
-  { q: "How do I cancel my subscription?", a: "Subscriptions are managed through Microsoft AppSource. Sign in at appsource.microsoft.com and manage your subscription from there." },
+  { q: "How do I cancel my subscription?", a: "There's no recurring subscription to cancel — Pro access is unlocked with a one-time USDT payment or a license key, and simply expires at the end of the plan period. To stop future access, don't renew when it expires." },
 ];
 
 export default function SupportPage() {

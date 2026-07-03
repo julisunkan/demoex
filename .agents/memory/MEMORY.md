@@ -1,1 +1,1 @@
-- [MS AppSource billing integration](ms-appsource-integration.md) — USDT replaced; auth flow, security constraints, and env vars needed
+- [USDT + license-key billing](ms-appsource-integration.md) — replaced AppSource/MSAL; sweep static/doc pages too, not just app flow, when removing a billing integration
