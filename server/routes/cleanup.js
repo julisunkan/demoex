@@ -39,21 +39,33 @@ router.get("/scan", async (req, res) => {
       senderFilter = "",
     } = req.query;
 
-    const days   = Math.max(1, Number(olderThan) || 180);
-    const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
+    const days = Math.max(1, Number(olderThan) || 180);
+    // Strip milliseconds — some Outlook REST v2.0 endpoints reject the full
+    // ISO string with ms in a $filter expression.
+    const cutoff = new Date(Date.now() - days * 86_400_000)
+      .toISOString()
+      .replace(/\.\d{3}Z$/, "Z");
 
-    const oFilters = [`receivedDateTime lt ${cutoff}`];
-    if (senderFilter) oFilters.push(`contains(from/emailAddress/address,'${senderFilter.replace(/'/g, "''")}')`);
-
+    // NOTE: Outlook REST API v2.0 uses OData v3 which does NOT support:
+    //   • contains()  — OData v4 only; causes "unexpected token" errors
+    //   • $orderby combined with $filter — rejected on the messages endpoint
+    // Sender filtering and sorting are therefore done in JS after the fetch.
     const qs = new URLSearchParams({
-      $filter:  oFilters.join(" and "),
+      $filter:  `receivedDateTime lt ${cutoff}`,
       $top:     "100",
       $select:  "id,subject,from,receivedDateTime,size,hasAttachments",
-      $orderby: "receivedDateTime asc",
     });
 
     const data     = await outlookFetch(auth.token, auth.restUrl, `/v2.0/me/messages?${qs}`);
-    const messages = data?.value ?? [];
+    const messages = (data?.value ?? [])
+      // Apply sender filter client-side (contains() not available in OData v3)
+      .filter(m => {
+        if (!senderFilter) return true;
+        const addr = (m.from?.emailAddress?.address ?? "").toLowerCase();
+        return addr.includes(senderFilter.toLowerCase());
+      })
+      // Sort oldest-first in JS instead of using $orderby with $filter
+      .sort((a, b) => new Date(a.receivedDateTime) - new Date(b.receivedDateTime));
 
     const wantNewsletters = newsletters  === "true";
     const wantPromo       = promotional  === "true";
