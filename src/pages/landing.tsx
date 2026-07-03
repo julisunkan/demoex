@@ -1,341 +1,198 @@
-/**
- * landing.tsx — Microsoft AppSource SaaS Landing Page (bold redesign)
- *
- * Microsoft redirects here after a user purchases the add-in from AppSource.
- * URL format: /landing?token={marketplace_token}
- */
+import { Shield, Check, Archive, RotateCcw, Trash2, BarChart3, Cloud, Lock } from "lucide-react";
 
-import { useState, useEffect } from "react";
-import { getMsalInstance, signInRedirect, getAccessToken } from "../lib/auth";
-import type { AccountInfo } from "@azure/msal-browser";
+const PLANS = [
+  {
+    id: "monthly", name: "Pro Monthly", price: "$9.99", period: "/user/month",
+    desc: "Full-featured email backup and recovery",
+    features: [
+      "Unlimited backup storage",
+      "All cloud providers",
+      "AES-256 encryption",
+      "Automated scheduling",
+      "AI-powered analytics",
+      "Multi-user support",
+      "Priority support",
+    ],
+    cta: "Start Free Trial", highlighted: false,
+  },
+  {
+    id: "annual", name: "Pro Annual", price: "$99.99", period: "/user/year",
+    desc: "Save 17% with annual billing — best value",
+    features: [
+      "Everything in Monthly",
+      "17% annual discount",
+      "Dedicated account manager",
+      "Custom retention policies",
+      "SLA 99.9% uptime",
+      "Advanced audit logs",
+      "Volume seat discounts",
+    ],
+    cta: "Start Free Trial", highlighted: true,
+  },
+];
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-
-const PLAN_LABELS: Record<string, string> = {
-  monthly: "Monthly", annual: "Annual (1 Year)",
-};
-
-type LandingStep = "init" | "needs-signin" | "signing-in" | "resolving" | "activating" | "success" | "error";
-
-interface ResolvedSub  { id: string; name?: string; planId?: string; offerId?: string; }
-interface ActivationResult { licenseKey: string; expiresAt: string; planId: string; }
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  function copy() {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  }
-  return (
-    <button
-      onClick={copy}
-      data-testid="button-copy-license-key"
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black shrink-0 transition-all ${
-        copied ? "bg-green-600 text-white" : "bg-primary text-white hover:opacity-90"
-      }`}
-    >
-      {copied ? (
-        <><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>Copied!</>
-      ) : (
-        <><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</>
-      )}
-    </button>
-  );
-}
-
-function Spinner({ color = "border-primary" }: { color?: string }) {
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative">
-        <div className={`w-10 h-10 rounded-full border-4 border-t-transparent animate-spin ${color}`} />
-      </div>
-    </div>
-  );
-}
+const FEATURES = [
+  { icon: Archive,   title: "Automated Backups",   desc: "Schedule daily, weekly, or monthly backups of your entire mailbox or selected folders — runs silently in the background." },
+  { icon: RotateCcw, title: "One-Click Restore",   desc: "Restore individual emails, entire folders, or your complete mailbox from any backup point with a few clicks." },
+  { icon: Trash2,    title: "Smart Cleanup",       desc: "Safely delete old newsletters, duplicates, and promotional emails with a full preview before anything is permanently removed." },
+  { icon: BarChart3, title: "Mailbox Analytics",   desc: "Deep insights into email volume trends, largest senders, folder sizes, storage usage, and cleanup savings." },
+  { icon: Cloud,     title: "Multi-Cloud Storage", desc: "Store backups on Local, Azure Blob, OneDrive, Amazon S3, Google Drive, or Dropbox — or all of them at once." },
+  { icon: Lock,      title: "AES-256 Encryption",  desc: "All backups are compressed and encrypted with military-grade AES-256-GCM before leaving your device." },
+];
 
 export default function LandingPage() {
-  const [step,       setStep]       = useState<LandingStep>("init");
-  const [account,   setAccount]    = useState<AccountInfo | null>(null);
-  const [resolved,  setResolved]   = useState<ResolvedSub | null>(null);
-  const [activation, setActivation] = useState<ActivationResult | null>(null);
-  const [errMsg,    setErrMsg]     = useState("");
-
-  const marketplaceToken = new URLSearchParams(window.location.search).get("token") ?? "";
-
-  useEffect(() => {
-    (async () => {
-      if (!marketplaceToken) {
-        setErrMsg("No marketplace token found in the URL. This page should only be accessed via AppSource.");
-        setStep("error"); return;
-      }
-      try {
-        const msal = getMsalInstance();
-        await msal.initialize();
-        const result = await msal.handleRedirectPromise();
-        if (result?.account) { setAccount(result.account); await runResolveAndActivate(result.account, marketplaceToken); return; }
-        const accounts = msal.getAllAccounts();
-        if (accounts.length > 0) { setAccount(accounts[0]); await runResolveAndActivate(accounts[0], marketplaceToken); }
-        else { setStep("needs-signin"); }
-      } catch (err: unknown) { setErrMsg(err instanceof Error ? err.message : String(err)); setStep("error"); }
-    })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function runResolveAndActivate(acc: AccountInfo, token: string) {
-    try {
-      setStep("resolving");
-      const resolveRes = await fetch(`${API_BASE}/api/saas/resolve`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      if (!resolveRes.ok) { const b = await resolveRes.json().catch(() => ({})); throw new Error(b.error ?? `Resolve failed (${resolveRes.status})`); }
-      const sub: ResolvedSub = await resolveRes.json();
-      setResolved(sub);
-
-      setStep("activating");
-      const accessToken = await getAccessToken(acc);
-      const activateRes = await fetch(`${API_BASE}/api/saas/activate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ subscriptionId: sub.id }),
-      });
-      if (!activateRes.ok) { const b = await activateRes.json().catch(() => ({})); throw new Error(b.error ?? `Activation failed (${activateRes.status})`); }
-      const act = await activateRes.json();
-      setActivation({ licenseKey: act.licenseKey, expiresAt: act.expiresAt, planId: act.planId ?? sub.planId ?? "" });
-      setStep("success");
-    } catch (err: unknown) { setErrMsg(err instanceof Error ? err.message : String(err)); setStep("error"); }
-  }
-
-  async function handleSignIn() {
-    setStep("signing-in");
-    try { await signInRedirect(); }
-    catch (err: unknown) { setErrMsg(err instanceof Error ? err.message : String(err)); setStep("error"); }
-  }
-
-  function fmtDate(iso: string) {
-    return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-green-100">
+    <div className="min-h-screen bg-background font-sans">
+      {/* Nav */}
+      <nav className="bg-white border-b border-border px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <Shield className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-black text-base">MailVault Pro</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <a href="#features" className="text-sm text-muted-foreground hover:text-foreground hidden sm:block">Features</a>
+          <a href="#pricing"  className="text-sm text-muted-foreground hover:text-foreground hidden sm:block">Pricing</a>
+          <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
+            className="text-sm font-bold bg-primary text-white px-4 py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
+            Get on AppSource
+          </a>
+        </div>
+      </nav>
 
-        {/* ── Header ── */}
-        <div className="bg-gradient-to-r from-emerald-700 via-green-600 to-teal-600 px-6 py-5 relative overflow-hidden">
-          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-white/10" />
-          <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/10" />
-          <div className="flex items-center gap-4 relative">
-            <div className="w-12 h-12 bg-white/25 rounded-2xl flex items-center justify-center border-2 border-white/30 shadow-lg">
-              <span className="text-white text-2xl">📊</span>
+      {/* Hero */}
+      <section className="bg-gradient-to-br from-primary via-blue-700 to-secondary text-white py-20 px-6 text-center">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="w-20 h-20 rounded-3xl bg-white/20 backdrop-blur-sm flex items-center justify-center mx-auto shadow-2xl">
+            <Shield className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-4xl font-black tracking-tight leading-tight">
+            Enterprise Email Backup<br />for Microsoft 365
+          </h1>
+          <p className="text-lg text-blue-100 max-w-xl mx-auto">
+            MailVault Pro backs up, encrypts, and restores your Outlook emails — automatically, securely, and directly inside Outlook.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
+              className="bg-white text-primary font-black px-8 py-3 rounded-xl hover:bg-blue-50 transition-colors shadow-lg">
+              Get Free Trial on AppSource
+            </a>
+            <a href="#features"
+              className="bg-white/10 text-white font-bold px-8 py-3 rounded-xl hover:bg-white/20 transition-colors border border-white/20">
+              See Features
+            </a>
+          </div>
+          <p className="text-sm text-blue-200">14-day free trial · No credit card required · Cancel anytime</p>
+        </div>
+      </section>
+
+      {/* Trust bar */}
+      <section className="bg-white border-b border-border py-5 px-6">
+        <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+          {["Microsoft 365 Certified","SOC 2 Type II Ready","GDPR Compliant","AES-256 Encrypted","99.9% Uptime SLA"].map(t => (
+            <div key={t} className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-600 shrink-0" />
+              <span className="font-medium">{t}</span>
             </div>
-            <div>
-              <p className="text-white font-black text-lg tracking-tight">Financial Data Analyzer</p>
-              <p className="text-green-100 text-xs font-semibold">Microsoft Excel Add-in · AppSource</p>
-            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="py-16 px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-black mb-3">Everything you need to protect your email</h2>
+            <p className="text-muted-foreground">Works directly inside Outlook — no separate app to install.</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {FEATURES.map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-white border border-border rounded-2xl p-5 hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="font-black text-sm mb-1.5">{title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+              </div>
+            ))}
           </div>
         </div>
+      </section>
 
-        <div className="px-6 py-6 space-y-5">
-
-          {/* ── Features strip (always visible) ── */}
-          {(step === "needs-signin" || step === "signing-in" || step === "init") && (
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { emoji: "⚡", label: "Auto-categorize", color: "bg-amber-50 border-amber-200 text-amber-700" },
-                { emoji: "🎨", label: "Color highlights", color: "bg-green-50 border-green-200 text-green-700" },
-                { emoji: "📈", label: "Smart reports",   color: "bg-blue-50 border-blue-200 text-blue-700"   },
-              ].map((f) => (
-                <div key={f.label} className={`border rounded-xl px-2 py-2.5 text-center animate-fade-in-up ${f.color}`}>
-                  <span className="text-lg block mb-1">{f.emoji}</span>
-                  <p className="text-[10px] font-black leading-tight">{f.label}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Init */}
-          {step === "init" && (
-            <div className="flex flex-col items-center gap-3 py-4">
-              <Spinner />
-              <p className="text-sm text-muted-foreground font-medium">Initializing…</p>
-            </div>
-          )}
-
-          {/* Sign-in */}
-          {(step === "needs-signin" || step === "signing-in") && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <h1 className="text-xl font-black text-foreground tracking-tight">Complete your setup</h1>
-                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                  Sign in with the Microsoft account you used to purchase Financial Data Analyzer on AppSource.
-                </p>
-              </div>
-
-              <div className="bg-gradient-to-r from-green-50 to-teal-50 border border-green-200 rounded-xl p-3.5 space-y-2.5">
-                {[
-                  { n: "1", color: "bg-green-500", text: "Sign in with your Microsoft account" },
-                  { n: "2", color: "bg-blue-500",  text: "We verify your AppSource purchase" },
-                  { n: "3", color: "bg-red-500",   text: "Your license key is generated instantly" },
-                ].map((s) => (
-                  <div key={s.n} className="flex items-center gap-2.5">
-                    <div className={`w-5 h-5 rounded-full ${s.color} text-white text-[10px] font-black flex items-center justify-center shrink-0`}>{s.n}</div>
-                    <p className="text-xs text-green-800 font-medium">{s.text}</p>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={handleSignIn}
-                disabled={step === "signing-in"}
-                data-testid="button-sign-in-microsoft"
-                className="w-full flex items-center justify-center gap-3 bg-[#0078d4] text-white font-black py-3.5 rounded-xl hover:bg-[#106ebe] transition-colors disabled:opacity-60 shadow-md"
-              >
-                {step === "signing-in" ? (
-                  <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Redirecting to Microsoft…</>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" viewBox="0 0 21 21" fill="none">
-                      <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
-                      <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
-                      <rect x="1"  y="11" width="9" height="9" fill="#00a4ef"/>
-                      <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-                    </svg>
-                    Sign in with Microsoft
-                  </>
-                )}
-              </button>
-              <p className="text-xs text-center text-muted-foreground">
-                Your license key is generated automatically after sign-in — no extra steps needed.
-              </p>
-            </div>
-          )}
-
-          {/* Resolving */}
-          {step === "resolving" && (
-            <div className="flex flex-col items-center gap-4 py-6">
-              <Spinner color="border-blue-500" />
-              <div className="text-center">
-                <p className="text-base font-black text-foreground">Verifying your purchase…</p>
-                <p className="text-sm text-muted-foreground mt-1">Contacting Microsoft Marketplace</p>
-              </div>
-            </div>
-          )}
-
-          {/* Activating */}
-          {step === "activating" && (
-            <div className="flex flex-col items-center gap-4 py-6">
-              <Spinner color="border-primary" />
-              <div className="text-center">
-                <p className="text-base font-black text-foreground">Activating your subscription…</p>
-                {account && <p className="text-xs text-muted-foreground mt-1">{account.username}</p>}
-                {resolved?.planId && (
-                  <span className="inline-block mt-2 text-[11px] font-black px-3 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
-                    {PLAN_LABELS[resolved.planId] ?? resolved.planId} Plan
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── Success ── */}
-          {step === "success" && activation && (
-            <div className="space-y-4 animate-scale-in">
-              {/* Success tick */}
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-16 h-16 rounded-full bg-green-100 border-2 border-green-300 flex items-center justify-center shadow-md animate-bounce-check">
-                  <svg className="w-8 h-8 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                </div>
-                <h1 className="text-xl font-black text-foreground tracking-tight">You're all set! 🎉</h1>
-                {account && (
-                  <p className="text-xs text-muted-foreground">
-                    Signed in as <span className="font-bold text-foreground">{account.username}</span>
-                  </p>
-                )}
-              </div>
-
-              {/* License key card */}
-              <div className="rounded-2xl border-2 border-green-300 bg-gradient-to-br from-green-50 to-teal-50 p-4 space-y-3" data-testid="card-license-key">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-black text-green-700 uppercase tracking-widest">Your License Key</p>
-                  {activation.planId && (
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-green-600 text-white shadow-sm">
-                      {PLAN_LABELS[activation.planId] ?? activation.planId}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 bg-white rounded-xl border border-green-200 px-3 py-3 shadow-sm">
-                  <code
-                    className="flex-1 font-mono text-sm font-black text-foreground tracking-wider select-all break-all"
-                    data-testid="text-license-key"
-                  >
-                    {activation.licenseKey}
-                  </code>
-                  <CopyButton text={activation.licenseKey} />
-                </div>
-                {activation.expiresAt && (
-                  <div className="flex items-center gap-1.5 text-xs text-green-700">
-                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    Valid until <span className="font-black">{fmtDate(activation.expiresAt)}</span>
+      {/* Pricing */}
+      <section id="pricing" className="py-16 px-6 bg-muted/50">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-black mb-3">Simple, transparent pricing</h2>
+            <p className="text-muted-foreground">Available exclusively on Microsoft AppSource. Billed through Microsoft.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-6">
+            {PLANS.map(plan => (
+              <div key={plan.id} className={`rounded-2xl p-6 border-2 ${plan.highlighted ? "border-primary bg-primary shadow-xl shadow-primary/20 text-white" : "border-border bg-white"}`}>
+                {plan.highlighted && (
+                  <div className="text-center mb-3">
+                    <span className="text-[10px] font-black bg-white/20 text-white px-3 py-1 rounded-full">BEST VALUE</span>
                   </div>
                 )}
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
-                  <p className="text-xs text-amber-800 leading-relaxed">
-                    <strong>📧 Save this key!</strong> Enter it inside the Excel add-in to activate Pro. A copy has been emailed to{" "}
-                    <span className="font-bold">{account?.username ?? "your account"}</span>.
-                  </p>
+                <p className="font-black text-sm mb-0.5">{plan.name}</p>
+                <div className="flex items-end gap-1 mb-1">
+                  <span className="text-3xl font-black">{plan.price}</span>
+                  <span className={`text-xs mb-1 ${plan.highlighted ? "text-blue-100" : "text-muted-foreground"}`}>{plan.period}</span>
                 </div>
-              </div>
-
-              {/* Next steps */}
-              <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
-                <p className="text-sm font-black text-foreground">Next steps</p>
-                {[
-                  { icon: "🖥️", text: "Open Microsoft Excel on your computer" },
-                  { icon: "🔌", text: 'Go to Insert → Add-ins → search "Financial Data Analyzer"' },
-                  { icon: "▶️", text: "Click Open to launch the add-in in Excel" },
-                  { icon: "🔑", text: 'Click "Enter License Key" and paste your key above' },
-                ].map((s, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="w-7 h-7 rounded-xl bg-primary text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                      {i + 1}
+                <p className={`text-xs mb-4 ${plan.highlighted ? "text-blue-100" : "text-muted-foreground"}`}>{plan.desc}</p>
+                <div className="space-y-2 mb-6">
+                  {plan.features.map(f => (
+                    <div key={f} className="flex items-center gap-2 text-xs">
+                      <Check className={`w-3.5 h-3.5 shrink-0 ${plan.highlighted ? "text-blue-200" : "text-green-600"}`} />
+                      <span>{f}</span>
                     </div>
-                    <p className="text-sm text-foreground/80 leading-snug pt-1">{s.icon} {s.text}</p>
-                  </div>
-                ))}
-              </div>
-
-              <p className="text-xs text-center text-muted-foreground">
-                Need help?{" "}
-                <a href="/support" className="text-primary font-bold underline underline-offset-2">Contact support</a>
-              </p>
-            </div>
-          )}
-
-          {/* Error */}
-          {step === "error" && (
-            <div className="space-y-4 animate-scale-in">
-              <div className="flex flex-col items-center gap-3 py-2">
-                <div className="w-16 h-16 rounded-full bg-red-100 border-2 border-red-200 flex items-center justify-center shadow-md">
-                  <svg className="w-8 h-8 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
+                  ))}
                 </div>
-                <h1 className="text-xl font-black text-foreground">Setup failed</h1>
+                <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
+                  className={`block text-center font-black text-sm py-2.5 rounded-xl transition-colors ${
+                    plan.highlighted ? "bg-white text-primary hover:bg-blue-50" : "bg-primary text-white hover:bg-primary/90"
+                  }`}>
+                  {plan.cta}
+                </a>
               </div>
-              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
-                <p className="text-xs text-red-700 font-mono break-all leading-relaxed" data-testid="text-error-message">{errMsg}</p>
-              </div>
-              <p className="text-xs text-center text-muted-foreground">
-                If this issue persists, contact{" "}
-                <a href="/support" className="text-primary font-bold underline">support</a>
-                {" "}with the error above.
-              </p>
-            </div>
-          )}
+            ))}
+          </div>
+          <p className="text-center text-xs text-muted-foreground mt-6">
+            Subscriptions managed entirely through Microsoft AppSource. No third-party billing.
+          </p>
         </div>
-      </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 px-6 bg-gradient-to-br from-primary to-secondary text-white text-center">
+        <div className="max-w-xl mx-auto space-y-4">
+          <h2 className="text-2xl font-black">Ready to protect your email?</h2>
+          <p className="text-blue-100 text-sm">Get MailVault Pro from Microsoft AppSource and start your 14-day free trial today.</p>
+          <a href="https://appsource.microsoft.com" target="_blank" rel="noreferrer"
+            className="inline-block bg-white text-primary font-black px-8 py-3 rounded-xl hover:bg-blue-50 transition-colors shadow-lg">
+            Get it Free on Microsoft AppSource
+          </a>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-border py-8 px-6">
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
+              <Shield className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="font-black text-sm">MailVault Pro</span>
+          </div>
+          <div className="flex gap-6 text-xs text-muted-foreground">
+            <a href="/eula"    className="hover:text-foreground">EULA</a>
+            <a href="/privacy" className="hover:text-foreground">Privacy</a>
+            <a href="/support" className="hover:text-foreground">Support</a>
+          </div>
+          <p className="text-xs text-muted-foreground">© 2025 MailVault. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 }

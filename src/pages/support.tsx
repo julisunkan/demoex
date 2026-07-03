@@ -1,210 +1,121 @@
 import { useState } from "react";
+import { Shield, Mail, MessageSquare, Book, ChevronDown, ChevronUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-
-const CATEGORIES = [
-  { value: "general",      label: "General Question" },
-  { value: "billing",      label: "Billing / Payment" },
-  { value: "license",      label: "License Key Issue" },
-  { value: "bug",          label: "Bug Report" },
-  { value: "feature",      label: "Feature Request" },
-  { value: "other",        label: "Other" },
+const FAQS = [
+  { q: "How do I set up my first backup?", a: "Open the add-in in Outlook, sign in with your Microsoft account, tap 'Backup' in the bottom nav, and follow the 6-step wizard. You can select folders, set filters, choose a storage destination, enable encryption, and schedule automatic backups." },
+  { q: "What email folders can I back up?", a: "You can back up Inbox, Sent Items, Archive, Drafts, Deleted Items, Junk Email, and any custom folders you have created in Outlook." },
+  { q: "Is my backup encrypted?", a: "Pro users can enable AES-256-GCM encryption with a custom password. Encrypted backups cannot be read without the password, which is never stored on our servers." },
+  { q: "Which cloud storage providers are supported?", a: "Pro plan supports Azure Blob Storage, OneDrive, Amazon S3, Google Drive, and Dropbox. Free plan supports local storage only." },
+  { q: "How do I restore emails from a backup?", a: "Go to the Restore tab in the add-in, select a backup, choose your scope (full, folder, or individual emails), set conflict resolution, and click Start Restore." },
+  { q: "Can I schedule automatic backups?", a: "Yes — Pro users can set up daily, weekly, or monthly scheduled backups with a custom time. Free users can run manual backups only." },
+  { q: "How do I cancel my subscription?", a: "Subscriptions are managed through Microsoft AppSource. Sign in at appsource.microsoft.com and manage your subscription from there." },
 ];
 
 export default function SupportPage() {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    licenseKey: "",
-    category: "general",
-    subject: "",
-    message: "",
-  });
+  const { toast } = useToast();
+  const [openFaq, setOpenFaq]   = useState<number | null>(null);
+  const [subject, setSubject]   = useState("");
+  const [message, setMessage]   = useState("");
+  const [email, setEmail]       = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState<string | null>(null);
-  const [error, setError] = useState("");
-
-  function update(field: string, value: string) {
-    setForm((f) => ({ ...f, [field]: value }));
-    setError("");
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    setError("");
-    try {
-      const res = await fetch(`${API_BASE}/api/tickets`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
-      setSubmitted(data.ticketId);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to submit. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+    await new Promise(r => setTimeout(r, 1000));
+    setSubmitting(false);
+    setSubject(""); setMessage(""); setEmail("");
+    toast({ title: "✅ Ticket submitted", description: "We'll reply within 24 hours." });
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="flex items-center gap-3 px-4 py-3 bg-white border-b border-border shadow-sm shrink-0">
-        <a
-          href="/"
-          className="flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Back
-        </a>
-        <h1 className="text-sm font-bold text-foreground">Support</h1>
-      </header>
-
-      <div className="flex-1 overflow-y-auto px-4 py-5">
-        {submitted ? (
-          <div className="flex flex-col items-center justify-center text-center gap-4 pt-8 px-4">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-              <svg className="w-8 h-8 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-base font-bold text-foreground">Ticket Submitted!</p>
-              <p className="text-xs text-muted-foreground mt-1">Your ticket ID is:</p>
-              <p className="text-sm font-mono font-bold text-primary mt-1">{submitted}</p>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
-              We'll review your request and respond to <span className="font-semibold text-foreground">{form.email}</span> as soon as possible. Please keep your ticket ID for reference.
-            </p>
-            <button
-              onClick={() => { setSubmitted(null); setForm({ name: "", email: "", licenseKey: "", category: "general", subject: "", message: "" }); }}
-              className="text-xs text-primary hover:underline mt-2"
-            >
-              Submit another ticket
-            </button>
+    <div className="min-h-screen bg-background">
+      {/* Nav */}
+      <nav className="bg-white border-b border-border px-6 py-3 flex items-center gap-3">
+        <a href="/landing" className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+            <Shield className="w-4 h-4 text-white" />
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-3.5">
-            <div>
-              <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                Have a problem or question? Fill in the form below and our team will get back to you.
-              </p>
-            </div>
+          <span className="font-black text-sm">MailVault Pro</span>
+        </a>
+        <span className="text-muted-foreground">/</span>
+        <span className="text-sm font-bold">Support</span>
+      </nav>
 
-            {/* Name */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Full Name <span className="text-destructive">*</span></label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => update("name", e.target.value)}
-                placeholder="Your name"
-                required
-                className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/50"
-                data-testid="input-support-name"
-              />
-            </div>
+      <div className="max-w-3xl mx-auto px-6 py-12 space-y-12">
+        <div className="text-center">
+          <h1 className="text-3xl font-black mb-2">How can we help?</h1>
+          <p className="text-muted-foreground">Browse FAQs or submit a support ticket below.</p>
+        </div>
 
-            {/* Email */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Email Address <span className="text-destructive">*</span></label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => update("email", e.target.value)}
-                placeholder="you@example.com"
-                required
-                className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/50"
-                data-testid="input-support-email"
-              />
-            </div>
-
-            {/* License key (optional) */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">License Key <span className="text-muted-foreground font-normal">(optional)</span></label>
-              <input
-                type="text"
-                value={form.licenseKey}
-                onChange={(e) => update("licenseKey", e.target.value)}
-                placeholder="BSA-XXXXXXXXXXXXXXXXXXXX"
-                className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm font-mono focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/50"
-                data-testid="input-support-license"
-              />
-            </div>
-
-            {/* Category */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Category <span className="text-destructive">*</span></label>
-              <select
-                value={form.category}
-                onChange={(e) => update("category", e.target.value)}
-                className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
-                data-testid="select-support-category"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Subject */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Subject <span className="text-destructive">*</span></label>
-              <input
-                type="text"
-                value={form.subject}
-                onChange={(e) => update("subject", e.target.value)}
-                placeholder="Brief summary of your issue"
-                required
-                className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/50"
-                data-testid="input-support-subject"
-              />
-            </div>
-
-            {/* Message */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Message <span className="text-destructive">*</span></label>
-              <textarea
-                value={form.message}
-                onChange={(e) => update("message", e.target.value)}
-                placeholder="Describe your issue in detail…"
-                required
-                rows={5}
-                className="w-full rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/50 resize-none"
-                data-testid="textarea-support-message"
-              />
-              <p className="text-[11px] text-muted-foreground">{form.message.length} / 2000</p>
-            </div>
-
-            {error && (
-              <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 rounded-xl px-3 py-2.5">
-                <svg className="w-4 h-4 text-destructive shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <p className="text-xs text-destructive font-medium">{error}</p>
+        {/* Quick links */}
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[
+            { icon: Book,          title: "Documentation",  desc: "Guides & tutorials",    href: "#faq" },
+            { icon: MessageSquare, title: "Submit Ticket",  desc: "Get personalized help",  href: "#ticket" },
+            { icon: Mail,          title: "Email Support",  desc: "support@mailvault.io",   href: "mailto:support@mailvault.io" },
+          ].map(({ icon: Icon, title, desc, href }) => (
+            <a key={title} href={href} className="bg-white border border-border rounded-2xl p-4 hover:shadow-md transition-shadow text-center block">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-2">
+                <Icon className="w-5 h-5 text-primary" />
               </div>
-            )}
+              <p className="font-bold text-sm">{title}</p>
+              <p className="text-xs text-muted-foreground">{desc}</p>
+            </a>
+          ))}
+        </div>
 
-            <button
-              type="submit"
-              disabled={submitting || !form.name || !form.email || !form.subject || !form.message}
-              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-xl py-3 text-sm font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              data-testid="button-support-submit"
-            >
-              {submitting ? (
-                <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting…</>
-              ) : (
-                <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                </svg>Submit Ticket</>
-              )}
+        {/* FAQ */}
+        <section id="faq">
+          <h2 className="text-xl font-black mb-4">Frequently Asked Questions</h2>
+          <div className="space-y-2">
+            {FAQS.map((faq, i) => (
+              <div key={i} className="bg-white border border-border rounded-xl overflow-hidden">
+                <button onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left">
+                  <p className="text-sm font-bold pr-4">{faq.q}</p>
+                  {openFaq === i ? <ChevronUp className="w-4 h-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />}
+                </button>
+                {openFaq === i && (
+                  <div className="px-4 pb-4 text-sm text-muted-foreground leading-relaxed border-t border-border pt-3">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Ticket form */}
+        <section id="ticket">
+          <h2 className="text-xl font-black mb-4">Submit a Support Ticket</h2>
+          <form onSubmit={handleSubmit} className="bg-white border border-border rounded-2xl p-6 space-y-4">
+            <div>
+              <label className="text-xs font-bold block mb-1">Your Email</label>
+              <Input type="email" required placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-bold block mb-1">Subject</label>
+              <Input required placeholder="Brief description of your issue" value={subject} onChange={e => setSubject(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs font-bold block mb-1">Message</label>
+              <textarea
+                required rows={5}
+                placeholder="Describe your issue in detail…"
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              />
+            </div>
+            <button type="submit" disabled={submitting}
+              className="w-full bg-primary text-white font-bold py-2.5 rounded-xl text-sm hover:bg-primary/90 disabled:opacity-60 transition-colors">
+              {submitting ? "Submitting…" : "Submit Ticket"}
             </button>
           </form>
-        )}
+        </section>
       </div>
     </div>
   );

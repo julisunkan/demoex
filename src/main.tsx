@@ -1,12 +1,12 @@
 import { createRoot } from "react-dom/client";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Switch, Route } from "wouter";
 import { AppConfigProvider } from "./context/AppConfigContext";
+import { queryClient } from "./lib/queryClient";
+import { Toaster } from "@/components/ui/toaster";
 import App from "./App";
 import LandingPage from "./pages/landing";
 import AdminPage from "./pages/admin";
-import EulaPage from "./pages/eula";
-import PrivacyPage from "./pages/privacy";
-import SupportPage from "./pages/support";
 import NotFound from "./pages/not-found";
 import "./index.css";
 
@@ -14,25 +14,17 @@ declare const Office: typeof import("@microsoft/office-js");
 
 function Root() {
   return (
-    <AppConfigProvider>
-      <Switch>
-        {/* AppSource landing page — accessed from a browser, not inside Excel */}
-        <Route path="/landing" component={LandingPage} />
-
-        {/* Admin panel */}
-        <Route path="/admin" component={AdminPage} />
-
-        {/* Static pages */}
-        <Route path="/eula"    component={EulaPage}    />
-        <Route path="/privacy" component={PrivacyPage} />
-        <Route path="/support" component={SupportPage} />
-
-        {/* Main taskpane */}
-        <Route path="/" component={App} />
-
-        <Route component={NotFound} />
-      </Switch>
-    </AppConfigProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppConfigProvider>
+        <Switch>
+          <Route path="/landing" component={LandingPage} />
+          <Route path="/admin"   component={AdminPage} />
+          <Route path="/"        component={App} />
+          <Route component={NotFound} />
+        </Switch>
+        <Toaster />
+      </AppConfigProvider>
+    </QueryClientProvider>
   );
 }
 

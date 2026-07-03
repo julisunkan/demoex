@@ -1,2425 +1,241 @@
-import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import {
-  KeyRound, LogOut, RefreshCw, ShieldCheck, Copy, Check,
-  CreditCard, Palette, Database, Download, Upload, Save, Eye, EyeOff,
-  Rocket, ExternalLink, AlertCircle, CheckCircle2, Terminal, Bell, TrendingUp,
-  Users, DollarSign, Activity, BarChart3, TicketCheck, LayoutDashboard,
-  Clock, XCircle, ArrowRight, Search, Mail
+  Shield, Users, Building2, Archive, BarChart3,
+  Activity, Settings, AlertCircle, CheckCircle2,
+  XCircle, Clock, Search, Download,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+type AdminSection = "dashboard" | "organizations" | "users" | "licenses" | "jobs" | "logs";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface License {
-  licenseKey: string; txHash: string; issuedAt: string;
-  note?: string; expiresAt?: string; planId?: string;
-  email?: string | null; reminderSent?: boolean;
-}
-interface Plan {
-  id: string;
-  label: string;
-  price: number;
-  days: number;
-  trialDays?: number;
-}
+interface OrgRow  { id: string; name: string; users: number; seats: number; plan: string; status: string; storage: string; }
+interface UserRow  { id: string; name: string; email: string; org: string; role: string; lastSeen: string; licensed: boolean; }
+interface JobRow   { id: string; type: string; user: string; status: string; started: string; duration: string; size: string; }
+interface LogRow   { id: string; action: string; user: string; org: string; ts: string; result: string; }
 
-interface EmailNotifyCfg {
-  enabled: boolean; to: string; smtpHost: string; smtpPort: number;
-  smtpUser: string; smtpPass: string; from: string;
-}
+const MOCK_ORGS: OrgRow[] = [
+  { id: "o1", name: "Contoso Ltd",       users: 120, seats: 150, plan: "Pro Annual",  status: "active",  storage: "1.2 TB" },
+  { id: "o2", name: "Fabrikam Inc",      users: 45,  seats: 50,  plan: "Pro Monthly", status: "active",  storage: "420 GB" },
+  { id: "o3", name: "Northwind Traders", users: 8,   seats: 10,  plan: "Pro Monthly", status: "trial",   storage: "84 GB"  },
+  { id: "o4", name: "Adventure Works",   users: 230, seats: 250, plan: "Pro Annual",  status: "active",  storage: "3.1 TB" },
+  { id: "o5", name: "Woodgrove Bank",    users: 12,  seats: 15,  plan: "Pro Monthly", status: "expired", storage: "140 GB" },
+];
 
-interface Settings {
-  appearance: { name: string; tagline: string; primaryColor: string; accentColor: string; radius: string; };
-  payment: { walletAddress: string; network: string; };
-  plans: Plan[];
-  notifications: { webhookUrl: string; remindersEnabled: boolean; reminderDays: number; email: EmailNotifyCfg; };
-  features: { proEnabled: boolean; };
-}
+const MOCK_USERS: UserRow[] = [
+  { id: "u1", name: "Alice Johnson", email: "alice@contoso.com",   org: "Contoso",        role: "Owner",   lastSeen: "Today",     licensed: true  },
+  { id: "u2", name: "Bob Smith",     email: "bob@fabrikam.com",    org: "Fabrikam",        role: "Admin",   lastSeen: "Yesterday", licensed: true  },
+  { id: "u3", name: "Carol White",   email: "carol@northwind.com", org: "Northwind",       role: "User",    lastSeen: "Jun 28",    licensed: false },
+  { id: "u4", name: "David Lee",     email: "david@contoso.com",   org: "Contoso",        role: "Manager", lastSeen: "Today",     licensed: true  },
+  { id: "u5", name: "Emma Davis",    email: "emma@adventure.com",  org: "Adventure Works", role: "User",    lastSeen: "Jun 25",    licensed: true  },
+];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
+const MOCK_JOBS: JobRow[] = [
+  { id: "j1", type: "Backup",  user: "alice@contoso.com",   status: "completed", started: "Today 3:00 AM",  duration: "7m 12s", size: "1.2 GB" },
+  { id: "j2", type: "Cleanup", user: "bob@fabrikam.com",    status: "running",   started: "Today 9:45 AM",  duration: "—",      size: "—" },
+  { id: "j3", type: "Restore", user: "david@contoso.com",   status: "completed", started: "Yesterday",      duration: "3m 8s",  size: "420 MB" },
+  { id: "j4", type: "Backup",  user: "carol@northwind.com", status: "failed",    started: "Jun 28",         duration: "—",      size: "—" },
+  { id: "j5", type: "Backup",  user: "emma@adventure.com",  status: "completed", started: "Jun 27 3:00 AM", duration: "12m 4s", size: "2.1 GB" },
+];
 
-function CopyBtn({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-      className="ml-1 text-muted-foreground hover:text-foreground transition-colors">
-      {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-    </button>
-  );
-}
+const MOCK_LOGS: LogRow[] = [
+  { id: "l1", action: "Backup Created",      user: "alice@contoso.com",   org: "Contoso",  ts: "Today 03:07 AM",  result: "success" },
+  { id: "l2", action: "User Login",          user: "bob@fabrikam.com",    org: "Fabrikam", ts: "Today 09:41 AM",  result: "success" },
+  { id: "l3", action: "Backup Failed",       user: "carol@northwind.com", org: "Northwind",ts: "Jun 28 03:00 AM", result: "error"   },
+  { id: "l4", action: "License Renewed",     user: "admin@contoso.com",   org: "Contoso",  ts: "Jun 27 12:00 PM", result: "success" },
+  { id: "l5", action: "Emails Deleted (142)",user: "david@contoso.com",   org: "Contoso",  ts: "Jun 26 02:30 PM", result: "success" },
+];
 
-// ── Login screen ──────────────────────────────────────────────────────────────
-function LoginScreen({ onLogin }: { onLogin: (pw: string) => void }) {
-  const [pw, setPw] = useState("");
-  const [show, setShow] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+const BACKUP_TREND = [
+  { day: "Mon", count: 48 }, { day: "Tue", count: 62 }, { day: "Wed", count: 55 },
+  { day: "Thu", count: 71 }, { day: "Fri", count: 69 }, { day: "Sat", count: 18 }, { day: "Sun", count: 12 },
+];
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true); setError("");
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/settings`, { headers: { "x-admin-password": pw } });
-      setLoading(false);
-      if (res.status === 401) { setError("Wrong password."); return; }
-      if (res.status === 503) { setError("Backend not configured — set ADMIN_PASSWORD on the server."); return; }
-      if (!res.ok) { setError(`Server error (${res.status}) — check that VITE_API_URL points to your backend.`); return; }
-      sessionStorage.setItem("admin_pw", pw);
-      onLogin(pw);
-    } catch {
-      setLoading(false);
-      const hint = API_BASE ? `Cannot reach ${API_BASE}` : "VITE_API_URL is not set — rebuild the frontend with that env var.";
-      setError(`Network error — ${hint}`);
-    }
-  }
+const STATUS_CLS: Record<string, string> = {
+  completed: "status-badge-success", running: "status-badge-info", failed: "status-badge-error",
+  active: "status-badge-success",    trial:   "status-badge-warning", expired: "status-badge-error",
+  success: "status-badge-success",   error:   "status-badge-error",
+};
+const STATUS_ICON: Record<string, typeof CheckCircle2> = {
+  completed: CheckCircle2, running: Clock, failed: XCircle,
+  active: CheckCircle2, trial: AlertCircle, expired: XCircle,
+};
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5 text-blue-600" />
+export default function AdminPage() {
+  const [section, setSection] = useState<AdminSection>("dashboard");
+  const [search, setSearch]   = useState("");
+
+  const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+  const [authed, setAuthed]   = useState(!adminPassword);
+  const [pass, setPass]       = useState("");
+  const [passErr, setPassErr] = useState(false);
+
+  if (!authed) return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="bg-white border border-border rounded-2xl p-8 w-full max-w-sm space-y-4 shadow-xl">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+            <Shield className="w-5 h-5 text-white" />
           </div>
-          <CardTitle className="text-lg">Admin Login</CardTitle>
-          <p className="text-sm text-muted-foreground">Financial Data Analyzer</p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="relative">
-              <Input type={show ? "text" : "password"} placeholder="Admin password" value={pw}
-                onChange={e => setPw(e.target.value)} autoFocus className="pr-10" />
-              <button type="button" onClick={() => setShow(s => !s)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading || !pw}>{loading ? "Checking…" : "Login"}</Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ── Licenses tab ──────────────────────────────────────────────────────────────
-function LicensesTab({ pw }: { pw: string }) {
-  const [data, setData] = useState<{ total: number; licenses: License[] } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [genNote, setGenNote] = useState("");
-  const [genExpiry, setGenExpiry] = useState("0");
-  const [newKey, setNewKey] = useState<string | null>(null);
-  const [newKeyCopied, setNewKeyCopied] = useState(false);
-  const [revoking, setRevoking] = useState<string | null>(null);
-  // Bulk generate state
-  const [bulkCount, setBulkCount] = useState(5);
-  const [bulkNote, setBulkNote] = useState("");
-  const [bulkExpiry, setBulkExpiry] = useState("0");
-  const [bulkGenerating, setBulkGenerating] = useState(false);
-  const [bulkKeys, setBulkKeys] = useState<string[]>([]);
-  const [bulkExpiresAt, setBulkExpiresAt] = useState<string | null>(null);
-  // Support lookup state
-  const [lookupEmail, setLookupEmail] = useState("");
-  const [lookupResults, setLookupResults] = useState<License[] | null>(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupDone, setLookupDone] = useState(false);
-  // Extend expiry state (keyed by licenseKey)
-  const [extendDays, setExtendDays] = useState<Record<string, string>>({});
-  const [extendingKey, setExtendingKey] = useState<string | null>(null);
-  const [extendedResult, setExtendedResult] = useState<Record<string, string>>({}); // key → new expiresAt
-
-  async function lookupByEmail() {
-    const email = lookupEmail.trim();
-    if (!email) return;
-    setLookupLoading(true);
-    setLookupDone(false);
-    setLookupResults(null);
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/licenses/lookup?email=${encodeURIComponent(email)}`,
-        { headers: { "x-admin-password": pw } }
-      );
-      if (res.ok) {
-        const { licenses } = await res.json();
-        setLookupResults(licenses);
-      }
-    } finally {
-      setLookupLoading(false);
-      setLookupDone(true);
-    }
-  }
-
-  async function extendLicense(licenseKey: string) {
-    const days = extendDays[licenseKey] ?? "30";
-    setExtendingKey(licenseKey);
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/licenses/${encodeURIComponent(licenseKey)}/extend`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", "x-admin-password": pw },
-          body: JSON.stringify({ days: parseInt(days) }),
-        }
-      );
-      if (res.ok) {
-        const { expiresAt } = await res.json();
-        setExtendedResult(prev => ({ ...prev, [licenseKey]: expiresAt }));
-        // Also update the in-place lookup result so expiry date refreshes
-        setLookupResults(prev =>
-          prev ? prev.map(l => l.licenseKey === licenseKey ? { ...l, expiresAt } : l) : prev
-        );
-        load(); // refresh the main license table too
-      }
-    } finally {
-      setExtendingKey(null);
-    }
-  }
-
-  async function load() {
-    setLoading(true);
-    const res = await fetch(`${API_BASE}/api/admin/licenses`, { headers: { "x-admin-password": pw } });
-    if (res.ok) setData(await res.json());
-    setLoading(false);
-  }
-
-  useEffect(() => { load(); }, []);
-
-  async function generateKey() {
-    setGenerating(true);
-    setNewKey(null);
-    const res = await fetch(`${API_BASE}/api/admin/licenses/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-password": pw },
-      body: JSON.stringify({
-        note: genNote || "Admin generated",
-        expiryDays: parseInt(genExpiry) || 0,
-      }),
-    });
-    setGenerating(false);
-    if (res.ok) {
-      const { licenseKey } = await res.json();
-      setNewKey(licenseKey);
-      setGenNote("");
-      load();
-    }
-  }
-
-  function copyNewKey() {
-    if (!newKey) return;
-    navigator.clipboard.writeText(newKey);
-    setNewKeyCopied(true);
-    setTimeout(() => setNewKeyCopied(false), 2000);
-  }
-
-  async function bulkGenerate() {
-    setBulkGenerating(true);
-    setBulkKeys([]);
-    setBulkExpiresAt(null);
-    const res = await fetch(`${API_BASE}/api/admin/licenses/bulk-generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-password": pw },
-      body: JSON.stringify({
-        count: bulkCount,
-        note: bulkNote || "Bulk generated",
-        expiryDays: parseInt(bulkExpiry) || 0,
-      }),
-    });
-    setBulkGenerating(false);
-    if (res.ok) {
-      const { keys, expiresAt } = await res.json();
-      setBulkKeys(keys);
-      setBulkExpiresAt(expiresAt ?? null);
-      load();
-    }
-  }
-
-  function downloadCsv() {
-    if (!bulkKeys.length) return;
-    const note = bulkNote || "Bulk generated";
-    const generatedAt = new Date().toISOString();
-    const header = "License Key,Note,Generated At,Expires At";
-    const rows = bulkKeys.map(k => `${k},"${note}",${generatedAt},${bulkExpiresAt ?? "Never"}`);
-    const csv = [header, ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `bsa-licenses-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function revokeKey(key: string) {
-    if (!confirm(`Revoke license key ${key}? This cannot be undone.`)) return;
-    setRevoking(key);
-    await fetch(`${API_BASE}/api/admin/licenses/${encodeURIComponent(key)}`, {
-      method: "DELETE", headers: { "x-admin-password": pw },
-    });
-    setRevoking(null);
-    load();
-  }
-
-  function exportSubscribersCsv() {
-    if (!data || data.licenses.length === 0) return;
-    const header = ["License Key", "Plan", "Subscriber Email", "Issued At", "Expires At", "Reminder Sent", "Source / TX Hash", "Note"];
-    const rows = data.licenses.map(l => [
-      l.licenseKey,
-      l.planId ?? "",
-      l.email ?? "",
-      l.issuedAt ?? "",
-      l.expiresAt ?? "",
-      l.reminderSent ? "Yes" : "No",
-      l.txHash === "MANUAL" ? "Manual" : (l.txHash ?? ""),
-      l.note ?? "",
-    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
-    const csv = [header.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `bsa-subscribers-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  return (
-    <div className="space-y-4">
-
-      {/* ── Support: Resend License Key ── */}
-      <Card className="border-amber-200 bg-amber-50/40">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Mail className="w-4 h-4 text-amber-600" /> Support: Resend License Key
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Look up a subscriber's license key by their Microsoft account email, then copy it to share with them.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Input
-              type="email"
-              value={lookupEmail}
-              onChange={e => { setLookupEmail(e.target.value); setLookupDone(false); setLookupResults(null); }}
-              onKeyDown={e => e.key === "Enter" && lookupByEmail()}
-              placeholder="subscriber@company.com"
-              className="flex-1"
-              data-testid="input-lookup-email"
-            />
-            <Button
-              onClick={lookupByEmail}
-              disabled={lookupLoading || !lookupEmail.trim()}
-              variant="outline"
-              className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 shrink-0"
-              data-testid="button-lookup-email"
-            >
-              {lookupLoading
-                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Looking up…</>
-                : <><Search className="w-4 h-4" /> Look Up</>}
-            </Button>
+          <div>
+            <p className="font-black">Admin Portal</p>
+            <p className="text-xs text-muted-foreground">MailVault Pro</p>
           </div>
-
-          {/* Results */}
-          {lookupDone && lookupResults !== null && (
-            lookupResults.length === 0 ? (
-              <div className="flex items-center gap-2 rounded-lg bg-white border border-amber-200 px-4 py-3 text-sm text-amber-800" data-testid="text-lookup-no-results">
-                <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
-                No license found for <span className="font-semibold ml-1">{lookupEmail.trim()}</span>
-              </div>
-            ) : (
-              <div className="space-y-2" data-testid="container-lookup-results">
-                <p className="text-xs font-semibold text-amber-700">
-                  {lookupResults.length} license{lookupResults.length > 1 ? "s" : ""} found for {lookupEmail.trim()}
-                </p>
-                {lookupResults.map((l, i) => {
-                  const nowMs = Date.now();
-                  const expired = l.expiresAt ? new Date(l.expiresAt).getTime() < nowMs : false;
-                  const justExtended = extendedResult[l.licenseKey];
-                  const isExtending = extendingKey === l.licenseKey;
-                  const selectedDays = extendDays[l.licenseKey] ?? "30";
-                  return (
-                    <div key={l.licenseKey} className={`rounded-lg border bg-white px-3 py-3 space-y-2.5 ${expired && !justExtended ? "border-red-200" : "border-amber-200"}`} data-testid={`card-lookup-result-${i}`}>
-                      {/* Header row: badges + issued date */}
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-1.5">
-                          {l.planId && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-blue-100 text-blue-700 border-0">
-                              {l.planId}
-                            </Badge>
-                          )}
-                          {justExtended ? (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-green-100 text-green-700 border-0">✓ Extended</Badge>
-                          ) : expired ? (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-red-100 text-red-700 border-0">Expired</Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 h-4 bg-green-100 text-green-700 border-0">Active</Badge>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-muted-foreground">Issued {fmtDate(l.issuedAt)}</span>
-                      </div>
-
-                      {/* License key + copy */}
-                      <div className="flex items-center gap-2 bg-gray-50 rounded-lg border border-gray-200 px-3 py-2">
-                        <code className="flex-1 font-mono text-sm font-bold text-gray-900 tracking-wider select-all break-all" data-testid={`text-lookup-key-${i}`}>
-                          {l.licenseKey}
-                        </code>
-                        <CopyBtn text={l.licenseKey} />
-                      </div>
-
-                      {/* Expiry row */}
-                      <p className="text-[11px] text-muted-foreground">
-                        {!l.expiresAt ? (
-                          <span>No expiry</span>
-                        ) : expired && !justExtended ? (
-                          <span className="text-red-600 font-medium">Expired {fmtDate(l.expiresAt)}</span>
-                        ) : (
-                          <>Valid until: <span className="font-medium">{fmtDate(justExtended ?? l.expiresAt ?? "")}</span></>
-                        )}
-                      </p>
-
-                      {/* ── Extend expiry controls ── */}
-                      <div className="flex items-center gap-2 pt-0.5 border-t border-dashed border-amber-200">
-                        <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <span className="text-[11px] text-amber-700 font-medium shrink-0">Extend by</span>
-                        <select
-                          value={selectedDays}
-                          onChange={e => setExtendDays(prev => ({ ...prev, [l.licenseKey]: e.target.value }))}
-                          className="rounded border border-amber-200 bg-white px-1.5 py-0.5 text-xs text-amber-900 focus:outline-none focus:ring-1 focus:ring-amber-300"
-                          data-testid={`select-extend-days-${i}`}
-                        >
-                          <option value="7">7 days</option>
-                          <option value="30">30 days</option>
-                          <option value="90">90 days</option>
-                          <option value="180">180 days</option>
-                          <option value="365">1 year</option>
-                        </select>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => extendLicense(l.licenseKey)}
-                          disabled={isExtending}
-                          className="h-6 px-2.5 text-[11px] border-amber-300 text-amber-700 hover:bg-amber-50 gap-1 shrink-0"
-                          data-testid={`button-extend-license-${i}`}
-                        >
-                          {isExtending
-                            ? <><RefreshCw className="w-3 h-3 animate-spin" /> Extending…</>
-                            : <><ArrowRight className="w-3 h-3" /> Extend</>}
-                        </Button>
-                        {justExtended && (
-                          <span className="text-[10px] text-green-600 font-semibold flex items-center gap-0.5" data-testid={`text-extend-success-${i}`}>
-                            <CheckCircle2 className="w-3 h-3" /> Done
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Generate key card */}
-      <Card className="border-blue-100 bg-blue-50/40">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <KeyRound className="w-4 h-4 text-blue-600" /> Generate License Key
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">Create a key manually — useful for testing or granting access without payment.</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2 flex-wrap">
-            <Input
-              value={genNote}
-              onChange={e => setGenNote(e.target.value)}
-              placeholder="Note (optional, e.g. 'Test key')"
-              className="flex-1 min-w-[140px]"
-              onKeyDown={e => e.key === "Enter" && generateKey()}
-            />
-            <select
-              value={genExpiry}
-              onChange={e => setGenExpiry(e.target.value)}
-              className="rounded-md border border-input bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
-            >
-              <option value="0">No expiry</option>
-              <option value="7">7 days</option>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
-              <option value="365">1 year</option>
-            </select>
-            <Button onClick={generateKey} disabled={generating} className="gap-2 shrink-0">
-              {generating
-                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Generating…</>
-                : <><KeyRound className="w-4 h-4" /> Generate</>}
-            </Button>
-          </div>
-
-          {newKey && (
-            <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-lg px-3 py-2.5">
-              <code className="flex-1 text-sm font-mono font-bold text-foreground tracking-wider select-all">{newKey}</code>
-              {genExpiry !== "0" && (
-                <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 font-medium shrink-0">
-                  {genExpiry}d
-                </span>
-              )}
-              <button onClick={copyNewKey}
-                className="shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-                {newKeyCopied ? <><Check className="w-3.5 h-3.5" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
-              </button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Bulk generate card */}
-      <Card className="border-purple-100 bg-purple-50/40">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Download className="w-4 h-4 text-purple-600" /> Bulk Generate Keys
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">Generate up to 100 keys at once and download as a CSV file.</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2 flex-wrap">
-            <div className="flex items-center gap-2 shrink-0">
-              <label className="text-sm font-medium">Count</label>
-              <Input
-                type="number" min={1} max={100}
-                value={bulkCount}
-                onChange={e => setBulkCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
-                className="w-20"
-              />
-            </div>
-            <Input
-              value={bulkNote}
-              onChange={e => setBulkNote(e.target.value)}
-              placeholder="Note (optional, e.g. 'Beta batch')"
-              className="flex-1 min-w-[140px]"
-            />
-            <select
-              value={bulkExpiry}
-              onChange={e => setBulkExpiry(e.target.value)}
-              className="rounded-md border border-input bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
-            >
-              <option value="0">No expiry</option>
-              <option value="7">7 days</option>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
-              <option value="365">1 year</option>
-            </select>
-            <Button onClick={bulkGenerate} disabled={bulkGenerating} variant="outline" className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50 shrink-0">
-              {bulkGenerating
-                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Generating…</>
-                : <><KeyRound className="w-4 h-4" /> Generate {bulkCount}</>}
-            </Button>
-          </div>
-
-          {bulkKeys.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-700">✓ {bulkKeys.length} keys generated</p>
-                  {bulkExpiresAt && (
-                    <p className="text-xs text-amber-600 mt-0.5">Expires {fmtDate(bulkExpiresAt)}</p>
-                  )}
-                </div>
-                <Button onClick={downloadCsv} size="sm" className="gap-2 bg-purple-600 hover:bg-purple-700 text-white">
-                  <Download className="w-3.5 h-3.5" /> Download CSV
-                </Button>
-              </div>
-              <div className="max-h-36 overflow-y-auto rounded-lg border border-purple-200 bg-white">
-                {bulkKeys.map((k, i) => (
-                  <div key={k} className="flex items-center justify-between px-3 py-1.5 border-b border-purple-50 last:border-0 hover:bg-purple-50/50">
-                    <span className="text-xs text-muted-foreground w-5 shrink-0">{i + 1}</span>
-                    <code className="flex-1 text-xs font-mono font-medium text-foreground tracking-wider select-all">{k}</code>
-                    <CopyBtn text={k} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* List */}
-      {/* Summary stats */}
-      {data && data.licenses.length > 0 && (() => {
-        const now = Date.now();
-        const withEmail    = data.licenses.filter(l => l.email).length;
-        const reminded     = data.licenses.filter(l => l.reminderSent).length;
-        const active       = data.licenses.filter(l => !l.expiresAt || new Date(l.expiresAt).getTime() > now).length;
-        const expiringSoon = data.licenses.filter(l => {
-          if (!l.expiresAt) return false;
-          const ms = new Date(l.expiresAt).getTime() - now;
-          return ms > 0 && ms < 7 * 24 * 60 * 60 * 1000;
-        }).length;
-        return (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {[
-              { label: "Total",          value: data.total,  color: "bg-gray-50 border-gray-200",     text: "text-gray-700"   },
-              { label: "Active",         value: active,      color: "bg-green-50 border-green-200",   text: "text-green-700"  },
-              { label: "Expiring soon",  value: expiringSoon,color: "bg-amber-50 border-amber-200",   text: "text-amber-700"  },
-              { label: "With email",     value: withEmail,   color: "bg-blue-50 border-blue-200",     text: "text-blue-700"   },
-            ].map(s => (
-              <div key={s.label} className={`rounded-xl border ${s.color} px-4 py-3 text-center`}>
-                <p className={`text-2xl font-bold ${s.text}`}>{s.value}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
-
-      <div className="flex items-center justify-between">
-        <Badge variant="secondary">{data?.total ?? 0} licenses issued</Badge>
-        <div className="flex items-center gap-2">
-          {data && data.licenses.length > 0 && (
-            <Button variant="outline" size="sm" onClick={exportSubscribersCsv} className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50" data-testid="button-export-subscribers-csv">
-              <Download className="w-3.5 h-3.5" /> Export CSV
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
         </div>
+        <Input type="password" placeholder="Admin password" value={pass}
+          onChange={e => setPass(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && (pass === adminPassword ? setAuthed(true) : setPassErr(true))}
+          className={passErr ? "border-destructive" : ""}
+        />
+        {passErr && <p className="text-xs text-destructive">Incorrect password</p>}
+        <button onClick={() => pass === adminPassword ? setAuthed(true) : setPassErr(true)}
+          className="w-full bg-primary text-white font-bold py-2.5 rounded-xl text-sm">
+          Sign In
+        </button>
       </div>
-
-      <Card>
-        <CardContent className="p-0">
-          {!data || data.licenses.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">No licenses issued yet.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50/60">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground w-8">#</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">License Key</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Source / Note</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Subscriber Email</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Expiry</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Reminder</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Issued At</th>
-                    <th className="px-4 py-3 w-8" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.licenses.map((l, i) => {
-                    const now = Date.now();
-                    const exp = l.expiresAt ? new Date(l.expiresAt).getTime() : null;
-                    const expired = exp !== null && exp < now;
-                    const expiringSoon = exp !== null && !expired && exp - now < 7 * 24 * 60 * 60 * 1000;
-                    return (
-                    <tr key={l.licenseKey} data-testid={`row-license-${l.licenseKey}`} className={`border-b last:border-0 hover:bg-gray-50 transition-colors ${expired ? "opacity-60" : ""}`}>
-                      <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <code className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded" data-testid={`text-license-key-${i}`}>{l.licenseKey}</code>
-                          <CopyBtn text={l.licenseKey} />
-                        </div>
-                        {l.planId && (
-                          <span className="text-[10px] text-muted-foreground mt-0.5 block">{l.planId}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {l.txHash === "MANUAL" ? (
-                          <div className="flex items-center gap-1.5">
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-blue-100 text-blue-700 border-0">Manual</Badge>
-                            {l.note && <span className="text-xs text-muted-foreground truncate max-w-[120px]">{l.note}</span>}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1 max-w-xs">
-                            <span className="font-mono text-xs text-muted-foreground truncate">{l.txHash}</span>
-                            <CopyBtn text={l.txHash} />
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {l.email ? (
-                          <div className="flex items-center gap-1" data-testid={`text-subscriber-email-${i}`}>
-                            <span className="text-xs text-foreground">{l.email}</span>
-                            <CopyBtn text={l.email} />
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground/50 italic">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {!l.expiresAt ? (
-                          <span className="text-xs text-muted-foreground">Never</span>
-                        ) : expired ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700">
-                            Expired {fmtDate(l.expiresAt)}
-                          </span>
-                        ) : expiringSoon ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
-                            ⚠ {fmtDate(l.expiresAt)}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">{fmtDate(l.expiresAt)}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap" data-testid={`status-reminder-${i}`}>
-                        {!l.email ? (
-                          <span className="text-[10px] text-muted-foreground/40 italic">no email</span>
-                        ) : l.reminderSent ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700">
-                            <CheckCircle2 className="w-3 h-3" /> Sent
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                            Pending
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtDate(l.issuedAt)}</td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => revokeKey(l.licenseKey)}
-                          disabled={revoking === l.licenseKey}
-                          className="text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
-                          title="Revoke key"
-                          data-testid={`button-revoke-${i}`}
-                        >
-                          {revoking === l.licenseKey ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : "✕"}
-                        </button>
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
-}
 
-// ── Payment tab ───────────────────────────────────────────────────────────────
-const DEFAULT_PLANS: Plan[] = [
-  { id: "monthly", label: "Monthly", price: 19,  days: 30,  trialDays: 0 },
-  { id: "annual",  label: "1-Year",  price: 199, days: 365, trialDays: 0 },
-];
-
-function PaymentTab({ pw, settings, onSaved }: { pw: string; settings: Settings; onSaved: (s: Settings) => void }) {
-  const [plans, setPlans] = useState<Plan[]>(settings.plans?.length ? settings.plans : DEFAULT_PLANS);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    setPlans(settings.plans?.length ? settings.plans : DEFAULT_PLANS);
-  }, [settings]);
-
-  function updatePlanPrice(id: string, price: number) {
-    setPlans((prev) => prev.map((p) => p.id === id ? { ...p, price } : p));
-  }
-
-  function togglePlanTrial(id: string, enabled: boolean) {
-    setPlans((prev) => prev.map((p) => p.id === id ? { ...p, trialDays: enabled ? 30 : 0 } : p));
-  }
-
-  function updatePlanTrialDays(id: string, trialDays: number) {
-    setPlans((prev) => prev.map((p) => p.id === id ? { ...p, trialDays } : p));
-  }
-
-  async function save() {
-    setSaving(true);
-    const res = await fetch(`${API_BASE}/api/admin/settings`, {
-      method: "PUT", headers: { "Content-Type": "application/json", "x-admin-password": pw },
-      body: JSON.stringify({ plans }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      const data = await res.json();
-      onSaved(data.settings);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    }
-  }
+  const NAV: { id: AdminSection; label: string; icon: typeof Shield }[] = [
+    { id: "dashboard",     label: "Dashboard",     icon: BarChart3 },
+    { id: "organizations", label: "Organizations", icon: Building2 },
+    { id: "users",         label: "Users",         icon: Users },
+    { id: "licenses",      label: "Licenses",      icon: Shield },
+    { id: "jobs",          label: "Jobs",          icon: Archive },
+    { id: "logs",          label: "Audit Logs",    icon: Activity },
+  ];
 
   return (
-    <div className="space-y-4">
-      {/* Subscription plans */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Subscription Plans</CardTitle>
-          <p className="text-sm text-muted-foreground">Set the price for each plan period. Users choose one before paying.</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {plans.map((plan) => {
-              const trialOn = (plan.trialDays ?? 0) > 0;
-              return (
-                <div key={plan.id} className="border border-border rounded-xl bg-muted/20 overflow-hidden">
-                  {/* Price row */}
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground">{plan.label}</p>
-                      <p className="text-xs text-muted-foreground">{plan.days} days access</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs text-muted-foreground">$</span>
-                      <Input
-                        type="number"
-                        min="1"
-                        step="0.5"
-                        value={plan.price}
-                        onChange={e => updatePlanPrice(plan.id, Number(e.target.value))}
-                        className="w-20 text-right font-mono font-semibold"
-                        data-testid={`input-plan-price-${plan.id}`}
-                      />
-                      <span className="text-xs text-muted-foreground">USD</span>
-                    </div>
-                  </div>
-                  {/* Free trial row */}
-                  <div className={`border-t border-dashed px-4 py-2.5 flex items-center gap-3 transition-colors ${trialOn ? "border-green-200 bg-green-50/60" : "border-border"}`}>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={trialOn}
-                      onClick={() => togglePlanTrial(plan.id, !trialOn)}
-                      data-testid={`toggle-trial-${plan.id}`}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${trialOn ? "bg-green-500" : "bg-muted-foreground/30"}`}
-                    >
-                      <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${trialOn ? "translate-x-4" : "translate-x-0"}`} />
-                    </button>
-                    <span className="text-xs font-medium text-foreground shrink-0">Free Trial</span>
-                    {trialOn && (
-                      <div className="flex items-center gap-1.5 ml-auto shrink-0">
-                        <Input
-                          type="number"
-                          min="1"
-                          max="365"
-                          value={plan.trialDays ?? 30}
-                          onChange={e => updatePlanTrialDays(plan.id, Math.max(1, Math.min(365, Number(e.target.value))))}
-                          className="w-16 text-right font-mono text-xs h-7 px-2"
-                          data-testid={`input-trial-days-${plan.id}`}
-                        />
-                        <span className="text-xs text-muted-foreground">days</span>
-                      </div>
-                    )}
-                    {!trialOn && (
-                      <span className="text-xs text-muted-foreground ml-auto">Off</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2.5 flex gap-2">
-            <svg className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <p className="text-xs text-blue-800">
-              Free trial settings here are for reference — match them exactly in <strong>Partner Center → Plans → Free trial</strong> when configuring your AppSource offer. Microsoft enforces the trial period on their end.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Button onClick={save} disabled={saving} className="gap-2">
-        {saved ? <><Check className="w-4 h-4" /> Saved!</> : saving ? "Saving…" : <><Save className="w-4 h-4" /> Save Payment Settings</>}
-      </Button>
-    </div>
-  );
-}
-
-// ── Appearance tab ────────────────────────────────────────────────────────────
-const PRESET_COLORS = [
-  { label: "Blue", primary: "#3b82f6", accent: "#16a34a" },
-  { label: "Purple", primary: "#8b5cf6", accent: "#0891b2" },
-  { label: "Rose", primary: "#f43f5e", accent: "#0891b2" },
-  { label: "Amber", primary: "#f59e0b", accent: "#10b981" },
-  { label: "Slate", primary: "#475569", accent: "#0284c7" },
-  { label: "Teal", primary: "#0d9488", accent: "#7c3aed" },
-];
-
-const RADIUS_OPTIONS = ["2px", "4px", "6px", "8px", "12px"];
-
-function AppearanceTab({ pw, settings, onSaved }: { pw: string; settings: Settings; onSaved: (s: Settings) => void }) {
-  const [form, setForm] = useState(settings.appearance);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => { setForm(settings.appearance); }, [settings]);
-
-  function applyPreview(a: typeof form) {
-    function hexToHsl(hex: string) {
-      const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
-      const max = Math.max(r,g,b), min = Math.min(r,g,b); let h=0,s=0; const l=(max+min)/2;
-      if(max!==min){const d=max-min;s=l>0.5?d/(2-max-min):d/(max+min);switch(max){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;case b:h=((r-g)/d+4)/6;break;}}
-      return `${Math.round(h*360)} ${Math.round(s*100)}% ${Math.round(l*100)}%`;
-    }
-    document.documentElement.style.setProperty("--primary", hexToHsl(a.primaryColor));
-    document.documentElement.style.setProperty("--ring", hexToHsl(a.primaryColor));
-    document.documentElement.style.setProperty("--accent", hexToHsl(a.accentColor));
-    document.documentElement.style.setProperty("--radius", a.radius);
-  }
-
-  function update(patch: Partial<typeof form>) {
-    const next = { ...form, ...patch };
-    setForm(next);
-    applyPreview(next);
-  }
-
-  async function save() {
-    setSaving(true);
-    const res = await fetch(`${API_BASE}/api/admin/settings`, {
-      method: "PUT", headers: { "Content-Type": "application/json", "x-admin-password": pw },
-      body: JSON.stringify({ appearance: form }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      const data = await res.json();
-      onSaved(data.settings);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">Appearance</CardTitle></CardHeader>
-      <CardContent className="space-y-5">
-        {/* Name & tagline */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Add-in Name</label>
-            <Input value={form.name} onChange={e => update({ name: e.target.value })} placeholder="Financial Data Analyzer" />
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Tagline</label>
-            <Input value={form.tagline} onChange={e => update({ tagline: e.target.value })} placeholder="Analyze transactions…" />
-          </div>
-        </div>
-
-        {/* Color presets */}
-        <div>
-          <label className="text-sm font-medium mb-2 block">Color Presets</label>
-          <div className="flex flex-wrap gap-2">
-            {PRESET_COLORS.map(p => (
-              <button key={p.label} onClick={() => update({ primaryColor: p.primary, accentColor: p.accent })}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium hover:border-primary transition-colors"
-                style={{ borderColor: form.primaryColor === p.primary ? p.primary : undefined }}>
-                <span className="w-3 h-3 rounded-full" style={{ background: p.primary }} />
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Custom colors */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Primary Color</label>
-            <div className="flex items-center gap-2">
-              <input type="color" value={form.primaryColor} onChange={e => update({ primaryColor: e.target.value })}
-                className="w-9 h-9 rounded-md border border-input cursor-pointer p-0.5" />
-              <Input value={form.primaryColor} onChange={e => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && update({ primaryColor: e.target.value })}
-                className="font-mono text-sm" maxLength={7} />
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Accent Color</label>
-            <div className="flex items-center gap-2">
-              <input type="color" value={form.accentColor} onChange={e => update({ accentColor: e.target.value })}
-                className="w-9 h-9 rounded-md border border-input cursor-pointer p-0.5" />
-              <Input value={form.accentColor} onChange={e => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && update({ accentColor: e.target.value })}
-                className="font-mono text-sm" maxLength={7} />
-            </div>
-          </div>
-        </div>
-
-        {/* Border radius */}
-        <div>
-          <label className="text-sm font-medium mb-2 block">Border Radius</label>
-          <div className="flex gap-2 flex-wrap">
-            {RADIUS_OPTIONS.map(r => (
-              <button key={r} onClick={() => update({ radius: r })}
-                className={`px-3 py-1.5 text-xs rounded-md border font-medium transition-colors ${form.radius === r ? "bg-primary text-primary-foreground border-primary" : "hover:border-primary"}`}>
-                {r}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Live preview */}
-        <div className="border rounded-lg p-4 bg-muted/30">
-          <p className="text-xs font-medium text-muted-foreground mb-3">Live Preview</p>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded flex items-center justify-center" style={{ background: form.primaryColor }}>
-              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/>
-              </svg>
+    <div className="min-h-screen flex bg-background">
+      {/* Sidebar */}
+      <aside className="w-52 bg-sidebar-background text-sidebar-foreground flex flex-col shrink-0">
+        <div className="px-4 py-4 border-b border-sidebar-border">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+              <Shield className="w-4 h-4 text-white" />
             </div>
             <div>
-              <div className="font-semibold text-sm">{form.name || "Add-in Name"}</div>
-              <div className="text-[10px] text-muted-foreground">Excel Add-in</div>
+              <p className="text-xs font-black">MailVault Pro</p>
+              <p className="text-[10px] opacity-60">Admin Portal</p>
             </div>
-          </div>
-          <p className="text-xs text-muted-foreground">{form.tagline || "Your tagline here"}</p>
-          <div className="mt-3 flex gap-2">
-            <span className="text-xs px-2.5 py-1 rounded-full text-white font-medium" style={{ background: form.primaryColor, borderRadius: form.radius }}>Primary Button</span>
-            <span className="text-xs px-2.5 py-1 rounded-full text-white font-medium" style={{ background: form.accentColor, borderRadius: form.radius }}>Accent Button</span>
           </div>
         </div>
-
-        <Button onClick={save} disabled={saving} className="gap-2">
-          {saved ? <><Check className="w-4 h-4" /> Saved!</> : saving ? "Saving…" : <><Save className="w-4 h-4" /> Save Appearance</>}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ── Backup tab ────────────────────────────────────────────────────────────────
-function BackupTab({ pw }: { pw: string }) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [importing, setImporting] = useState(false);
-  const [importMsg, setImportMsg] = useState("");
-
-  async function exportData() {
-    const res = await fetch(`${API_BASE}/api/admin/export`, { headers: { "x-admin-password": pw } });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url;
-    a.download = `bsa-backup-${new Date().toISOString().slice(0,10)}.json`;
-    a.click(); URL.revokeObjectURL(url);
-  }
-
-  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return;
-    setImporting(true); setImportMsg("");
-    try {
-      const text = await file.text();
-      const json = JSON.parse(text);
-      const res = await fetch(`${API_BASE}/api/admin/import`, {
-        method: "POST", headers: { "Content-Type": "application/json", "x-admin-password": pw },
-        body: JSON.stringify(json),
-      });
-      setImportMsg(res.ok ? "✅ Import successful! Reload the page to see changes." : "❌ Import failed.");
-    } catch {
-      setImportMsg("❌ Invalid backup file.");
-    }
-    setImporting(false);
-    if (fileRef.current) fileRef.current.value = "";
-  }
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Download className="w-4 h-4" /> Export Backup</CardTitle></CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">Download all settings and license records as a JSON file you can use to restore or migrate.</p>
-          <Button onClick={exportData} variant="outline" className="gap-2"><Download className="w-4 h-4" /> Download Backup</Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Upload className="w-4 h-4" /> Import Backup</CardTitle></CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">Restore settings and licenses from a previously exported backup file. <strong>This will overwrite current data.</strong></p>
-          <input ref={fileRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
-          <Button onClick={() => fileRef.current?.click()} variant="outline" disabled={importing} className="gap-2">
-            <Upload className="w-4 h-4" /> {importing ? "Importing…" : "Choose Backup File"}
-          </Button>
-          {importMsg && <p className="mt-3 text-sm">{importMsg}</p>}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ── Setup Guide tab ───────────────────────────────────────────────────────────
-function Step({ done, children }: { done?: boolean; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-3 items-start">
-      <div className={`mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${done ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
-        {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
-      </div>
-      <div className="text-sm leading-relaxed">{children}</div>
-    </div>
-  );
-}
-
-function CodeLine({ children }: { children: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="flex items-center gap-2 bg-gray-900 text-green-400 rounded-md px-3 py-2 font-mono text-xs my-1.5">
-      <Terminal className="w-3.5 h-3.5 shrink-0 text-gray-500" />
-      <span className="flex-1 select-all">{children}</span>
-      <button onClick={() => { navigator.clipboard.writeText(children); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-        className="text-gray-500 hover:text-white transition-colors">
-        {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-      </button>
-    </div>
-  );
-}
-
-function EnvRow({ name, required, desc }: { name: string; required?: boolean; desc: string }) {
-  return (
-    <div className="flex items-start gap-3 py-2.5 border-b last:border-0">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <code className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-800">{name}</code>
-          {required && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">Required</Badge>}
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-      </div>
-    </div>
-  );
-}
-
-function SetupTab() {
-  const backendUrl = API_BASE || "https://your-api.onrender.com";
-
-  return (
-    <div className="space-y-5">
-
-      {/* Render deployment */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Rocket className="w-4 h-4 text-primary" /> Render Deployment Guide
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">Step-by-step setup for deploying both services to Render.</p>
-        </CardHeader>
-        <CardContent className="space-y-5">
-
-          {/* Step 1 */}
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-foreground">1 · Deploy the Backend (Web Service)</p>
-            <div className="space-y-2 pl-1">
-              <Step>Create a new <strong>Web Service</strong> on <a href="https://render.com" target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2 inline-flex items-center gap-0.5">render.com <ExternalLink className="w-3 h-3" /></a> and connect your Git repo.</Step>
-              <Step>Set <strong>Root Directory</strong> to <code className="bg-muted px-1 rounded text-xs">server</code></Step>
-              <Step>Use these build &amp; start commands:
-                <CodeLine>npm install</CodeLine>
-                <CodeLine>node index.js</CodeLine>
-              </Step>
-              <Step>Add the environment variables listed in the table below.</Step>
-              <Step>Deploy — copy the service URL (e.g. <code className="bg-muted px-1 rounded text-xs">https://bank-analyzer-api.onrender.com</code>).</Step>
-            </div>
-          </div>
-
-          <div className="border-t pt-4 space-y-2">
-            <p className="text-sm font-semibold text-foreground">2 · Deploy the Frontend (Static Site)</p>
-            <div className="space-y-2 pl-1">
-              <Step>Create a new <strong>Static Site</strong> on Render from the same repo.</Step>
-              <Step>Leave <strong>Root Directory</strong> blank (uses repo root).</Step>
-              <Step>Build command &amp; publish directory:
-                <CodeLine>npm install && npm run build</CodeLine>
-                <span className="text-xs text-muted-foreground">Publish directory: <code className="bg-muted px-1 rounded">dist/public</code></span>
-              </Step>
-              <Step>Set <code className="bg-muted px-1 rounded text-xs">VITE_API_URL</code> to your backend URL from Step 1.</Step>
-              <Step>Deploy — your add-in UI is now live.</Step>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Env vars table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Backend Environment Variables</CardTitle>
-          <p className="text-sm text-muted-foreground">Set these in Render → your Web Service → Environment.</p>
-        </CardHeader>
-        <CardContent className="p-0 px-4 pb-2">
-          <EnvRow name="ADMIN_PASSWORD" required desc="Password to access this admin panel. Choose something strong." />
-        </CardContent>
-      </Card>
-
-      {/* Frontend env var */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Frontend Environment Variable</CardTitle>
-          <p className="text-sm text-muted-foreground">Set this in Render → your Static Site → Environment (before building).</p>
-        </CardHeader>
-        <CardContent className="p-0 px-4 pb-2">
-          <EnvRow name="VITE_API_URL" required desc={`URL of your deployed backend, e.g. ${backendUrl}`} />
-        </CardContent>
-      </Card>
-
-      {/* manifest.xml note */}
-      <Card className="border-amber-200 bg-amber-50/50">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex gap-3">
-            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-semibold text-amber-800 mb-1">Update manifest.xml before sideloading</p>
-              <p className="text-amber-700">Set the <code className="bg-amber-100 px-1 rounded text-xs">SourceLocation</code> URL in <code className="bg-amber-100 px-1 rounded text-xs">manifest.xml</code> to your deployed frontend URL so Excel loads the correct add-in.</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* AppSource listing guide */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <ExternalLink className="w-4 h-4 text-primary" /> Microsoft AppSource Listing Guide
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            How to publish your add-in as a paid SaaS offer on Microsoft AppSource via Partner Center.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-
-          {/* Phase 1 — Prerequisites */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 1</span>
-              <p className="text-sm font-semibold">Prerequisites</p>
-            </div>
-            <div className="space-y-2 pl-1">
-              <Step>Enroll in the <strong>Commercial Marketplace</strong> program at <a href="https://partner.microsoft.com" target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2 inline-flex items-center gap-0.5">partner.microsoft.com <ExternalLink className="w-3 h-3" /></a> → Account settings → Programs.</Step>
-              <Step>Register an <strong>Azure AD app</strong> in the Azure Portal for SaaS fulfillment authentication — you'll need the <code className="bg-muted px-1 rounded text-xs">Application (client) ID</code> and a <code className="bg-muted px-1 rounded text-xs">client secret</code>.</Step>
-              <Step>Have your deployed backend URL ready — Partner Center will call it to activate subscriptions.</Step>
-              <Step>Prepare <strong>offer logos</strong> in PNG format: 216×216 px (small), 1280×720 px (wide banner). No text in logos — Microsoft may reject them.</Step>
-            </div>
-          </div>
-
-          {/* Phase 2 — Create the SaaS Offer */}
-          <div className="space-y-2 border-t pt-5">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 2</span>
-              <p className="text-sm font-semibold">Create the SaaS Offer</p>
-            </div>
-            <div className="space-y-2 pl-1">
-              <Step>In Partner Center go to <strong>Marketplace offers → + New offer → Software as a Service (SaaS)</strong>.</Step>
-              <Step>Enter an <strong>Offer ID</strong> (lowercase, hyphens only, permanent — e.g. <code className="bg-muted px-1 rounded text-xs">bank-statement-analyzer</code>) and an <strong>Offer alias</strong> (internal name).</Step>
-              <Step>On the <strong>Setup</strong> page, set <em>Customer gets software through Microsoft</em> to <strong>Yes</strong> so billing flows through the marketplace.</Step>
-              <Step>Enter your <strong>Landing page URL</strong> — this is the page customers land on after purchasing. It receives a <code className="bg-muted px-1 rounded text-xs">token</code> query param that you resolve via the SaaS Fulfillment API.</Step>
-            </div>
-          </div>
-
-          {/* Phase 3 — Listing fields */}
-          <div className="space-y-2 border-t pt-5">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 3</span>
-              <p className="text-sm font-semibold">Listing &amp; Storefront Details</p>
-            </div>
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-muted/60 border-b">
-                    <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Field</th>
-                    <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Requirement</th>
-                    <th className="text-left px-3 py-2 font-semibold text-muted-foreground">Suggested value</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {[
-                    { field: "Offer name",        req: "Required",  val: "Financial Data Analyzer for Excel" },
-                    { field: "Summary",           req: "Required · ≤100 chars", val: "Analyze, categorize & export bank transactions directly in Excel." },
-                    { field: "Description",       req: "Required · ≤3 000 chars", val: "Full feature breakdown + screenshots. Include what Pro unlocks." },
-                    { field: "Search keywords",   req: "Up to 3",   val: "bank statement, Excel add-in, transaction analyzer" },
-                    { field: "Privacy policy URL",req: "Required",  val: "Your /privacy page URL" },
-                    { field: "Support URL",       req: "Required",  val: "Your /support page URL" },
-                    { field: "Category",          req: "1–2",       val: "Productivity › Office tools" },
-                    { field: "Industries",        req: "Optional",  val: "Financial services, Banking" },
-                    { field: "Logo (216×216)",    req: "Required",  val: "PNG, no text, matches add-in icon" },
-                    { field: "Screenshots",       req: "1–5 images", val: "1280×720 px showing the task pane in Excel" },
-                  ].map(r => (
-                    <tr key={r.field} className="hover:bg-muted/20">
-                      <td className="px-3 py-2 font-medium">{r.field}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{r.req}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{r.val}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Phase 4 — Technical config */}
-          <div className="space-y-2 border-t pt-5">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 4</span>
-              <p className="text-sm font-semibold">Technical Configuration</p>
-            </div>
-            <div className="space-y-2 pl-1">
-              <Step>Set the <strong>Landing page URL</strong> to the route that calls <code className="bg-muted px-1 rounded text-xs">/api/saas/resolve</code> on your backend to exchange the marketplace token for a subscription.</Step>
-              <Step>Set the <strong>Connection webhook URL</strong> to <code className="bg-muted px-1 rounded text-xs">/api/saas/webhook</code> on your backend — Microsoft sends subscription lifecycle events here (activate, suspend, unsubscribe).</Step>
-              <Step>Enter your <strong>Azure AD Tenant ID</strong> and <strong>Application (client) ID</strong> — these are your <code className="bg-muted px-1 rounded text-xs">AZURE_TENANT_ID</code> and <code className="bg-muted px-1 rounded text-xs">AZURE_CLIENT_ID</code> env vars.</Step>
-            </div>
-            <div className="mt-3 rounded-lg border bg-muted/30 px-4 py-3 space-y-1">
-              <p className="text-xs font-semibold text-foreground mb-1">Backend env vars needed for SaaS fulfillment</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
-                {["AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET"].map(k => (
-                  <code key={k} className="text-xs font-mono bg-gray-900 text-green-400 px-2 py-1 rounded">{k}</code>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Set these as secrets in your deployment environment (Replit Secrets tab or Render environment).</p>
-            </div>
-          </div>
-
-          {/* Phase 5 — Plans & pricing */}
-          <div className="space-y-2 border-t pt-5">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 5</span>
-              <p className="text-sm font-semibold">Plans &amp; Pricing</p>
-            </div>
-            <div className="space-y-2 pl-1">
-              <Step>Add at least one <strong>Plan</strong> — give it an ID (e.g. <code className="bg-muted px-1 rounded text-xs">pro-monthly</code>), a public name, and set billing as <strong>Flat rate</strong> per month.</Step>
-              <Step>Set the <strong>price per user/month</strong> to match what you have in your admin Payment settings (e.g. $5/month).</Step>
-              <Step>Enable <strong>Free trial</strong> (optional, recommended) — 1-month trials significantly improve conversion on AppSource.</Step>
-              <Step>Set <strong>Visibility</strong> to <em>Private</em> while testing, then switch to <em>Public</em> before final submission.</Step>
-            </div>
-          </div>
-
-          {/* Phase 6 — Review & publish */}
-          <div className="space-y-2 border-t pt-5">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-0.5 rounded">Phase 6</span>
-              <p className="text-sm font-semibold">Review &amp; Publish</p>
-            </div>
-            <div className="space-y-2 pl-1">
-              <Step>Click <strong>Review and publish</strong> — Partner Center validates all required fields and shows a checklist of what's incomplete.</Step>
-              <Step>Use <strong>Preview</strong> to test the purchase flow with a preview audience before going live.</Step>
-              <Step>Submit for <strong>Microsoft certification</strong> — review typically takes 2–5 business days. You'll get an email with pass/fail feedback.</Step>
-              <Step done>Once certified, click <strong>Go live</strong> — your offer appears on AppSource within 24–48 hours.</Step>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-blue-200 bg-blue-50/60 px-4 py-3 flex gap-3">
-            <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-800">
-              <strong>Tip:</strong> The full Microsoft SaaS offer documentation is at{" "}
-              <a href="https://learn.microsoft.com/en-us/partner-center/marketplace/create-new-saas-offer" target="_blank" rel="noreferrer" className="underline underline-offset-2 inline-flex items-center gap-0.5 font-medium">
-                learn.microsoft.com/partner-center/marketplace <ExternalLink className="w-3 h-3" />
-              </a>
-            </p>
-          </div>
-
-        </CardContent>
-      </Card>
-
-    </div>
-  );
-}
-
-// ── Notifications tab ─────────────────────────────────────────────────────────
-const DEFAULT_EMAIL_CFG: EmailNotifyCfg = {
-  enabled: false, to: "", smtpHost: "", smtpPort: 587, smtpUser: "", smtpPass: "", from: "",
-};
-
-function NotificationsTab({ pw, settings, onSaved }: { pw: string; settings: Settings; onSaved: (s: Settings) => void }) {
-  const [webhookUrl, setWebhookUrl] = useState(settings.notifications?.webhookUrl ?? "");
-  const [email, setEmail] = useState<EmailNotifyCfg>(settings.notifications?.email ?? DEFAULT_EMAIL_CFG);
-  const [remindersEnabled, setRemindersEnabled] = useState(settings.notifications?.remindersEnabled ?? false);
-  const [reminderDays, setReminderDays] = useState(settings.notifications?.reminderDays ?? 3);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  useEffect(() => {
-    setWebhookUrl(settings.notifications?.webhookUrl ?? "");
-    setEmail(settings.notifications?.email ?? DEFAULT_EMAIL_CFG);
-    setRemindersEnabled(settings.notifications?.remindersEnabled ?? false);
-    setReminderDays(settings.notifications?.reminderDays ?? 3);
-  }, [settings]);
-
-  function setEmailField<K extends keyof EmailNotifyCfg>(k: K, v: EmailNotifyCfg[K]) {
-    setEmail(e => ({ ...e, [k]: v }));
-  }
-
-  async function save() {
-    setSaving(true);
-    const res = await fetch(`${API_BASE}/api/admin/settings`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", "x-admin-password": pw },
-      body: JSON.stringify({ notifications: { webhookUrl, email, remindersEnabled, reminderDays } }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      const data = await res.json();
-      onSaved(data.settings);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    }
-  }
-
-  async function sendTest() {
-    setTesting(true);
-    setTestMsg(null);
-    const saveRes = await fetch(`${API_BASE}/api/admin/settings`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", "x-admin-password": pw },
-      body: JSON.stringify({ notifications: { webhookUrl, email } }),
-    });
-    if (!saveRes.ok) { setTesting(false); setTestMsg({ ok: false, text: "Failed to save before testing." }); return; }
-    const data = await saveRes.json();
-    onSaved(data.settings);
-
-    const res = await fetch(`${API_BASE}/api/admin/notify-test`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-password": pw },
-    });
-    setTesting(false);
-    const json = await res.json().catch(() => ({}));
-    if (res.ok) setTestMsg({ ok: true, text: json.message || "Test notification sent!" });
-    else setTestMsg({ ok: false, text: json.error || "Test failed." });
-    setTimeout(() => setTestMsg(null), 6000);
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Webhook */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Webhook Notification</CardTitle>
-          <p className="text-sm text-muted-foreground">Works with Discord, Slack, Make.com, Zapier, n8n — paste any incoming webhook URL.</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Webhook URL</label>
-            <Input
-              value={webhookUrl}
-              onChange={e => setWebhookUrl(e.target.value)}
-              placeholder="https://discord.com/api/webhooks/… or https://hooks.slack.com/…"
-              className="font-mono text-sm"
-              data-testid="input-webhook-url"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            A JSON payload with plan, license key, expiry, and TX hash is POSTed to this URL each time a new subscription activates.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Email */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Email Notification (SMTP)</CardTitle>
-          <p className="text-sm text-muted-foreground">Send yourself an email via your own SMTP server (Gmail, Mailgun, etc.) on each new activation.</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" checked={email.enabled} onChange={e => setEmailField("enabled", e.target.checked)}
-              className="w-4 h-4 rounded accent-primary" data-testid="checkbox-email-enabled" />
-            <span className="text-sm font-medium">Enable email notifications</span>
-          </label>
-
-          <div className={`space-y-3 transition-opacity ${email.enabled ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="text-xs font-medium mb-1 block text-muted-foreground">Notify to (your email)</label>
-                <Input value={email.to} onChange={e => setEmailField("to", e.target.value)}
-                  placeholder="you@example.com" type="email" data-testid="input-email-to" />
-              </div>
-              <div>
-                <label className="text-xs font-medium mb-1 block text-muted-foreground">From address (optional)</label>
-                <Input value={email.from} onChange={e => setEmailField("from", e.target.value)}
-                  placeholder="noreply@yourdomain.com" type="email" data-testid="input-email-from" />
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="sm:col-span-2">
-                <label className="text-xs font-medium mb-1 block text-muted-foreground">SMTP Host</label>
-                <Input value={email.smtpHost} onChange={e => setEmailField("smtpHost", e.target.value)}
-                  placeholder="smtp.gmail.com" data-testid="input-smtp-host" />
-              </div>
-              <div>
-                <label className="text-xs font-medium mb-1 block text-muted-foreground">Port</label>
-                <Input type="number" value={email.smtpPort} onChange={e => setEmailField("smtpPort", Number(e.target.value))}
-                  placeholder="587" className="font-mono" data-testid="input-smtp-port" />
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="text-xs font-medium mb-1 block text-muted-foreground">SMTP Username</label>
-                <Input value={email.smtpUser} onChange={e => setEmailField("smtpUser", e.target.value)}
-                  placeholder="you@gmail.com" data-testid="input-smtp-user" />
-              </div>
-              <div>
-                <label className="text-xs font-medium mb-1 block text-muted-foreground">SMTP Password / App Password</label>
-                <Input type="password" value={email.smtpPass} onChange={e => setEmailField("smtpPass", e.target.value)}
-                  placeholder="••••••••" data-testid="input-smtp-pass" />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground bg-muted rounded-md p-3">
-              Gmail tip: Use port 587, your Gmail address as username, and an <strong>App Password</strong> (not your regular password). Generate one at myaccount.google.com → Security → App passwords.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Renewal reminders */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Renewal Reminders</CardTitle>
-          <p className="text-sm text-muted-foreground">Automatically email subscribers before their plan expires (requires Email SMTP above).</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" checked={remindersEnabled} onChange={e => setRemindersEnabled(e.target.checked)}
-              className="w-4 h-4 rounded accent-primary" data-testid="checkbox-reminders-enabled" />
-            <span className="text-sm font-medium">Send renewal reminder emails to subscribers</span>
-          </label>
-
-          <div className={`space-y-1 transition-opacity ${remindersEnabled ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
-            <label className="text-xs font-medium text-muted-foreground block">Days before expiry to send reminder</label>
-            <div className="flex items-center gap-2">
-              <Input type="number" min="1" max="30" value={reminderDays}
-                onChange={e => setReminderDays(Number(e.target.value))}
-                className="w-24 font-mono" data-testid="input-reminder-days" />
-              <span className="text-sm text-muted-foreground">days before expiry</span>
-            </div>
-          </div>
-
-          <div className="text-xs text-muted-foreground bg-muted rounded-md p-3 space-y-1">
-            <p>• Subscribers provide their email optionally during payment checkout.</p>
-            <p>• The server checks every 6 hours and sends one reminder per license.</p>
-            <p>• Requires <strong>Email SMTP</strong> to be configured and enabled above.</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {testMsg && (
-        <div className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm ${testMsg.ok ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
-          {testMsg.ok ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-          {testMsg.text}
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={save} disabled={saving} className="gap-2" data-testid="button-save-notifications">
-          {saved ? <><Check className="w-4 h-4" /> Saved!</> : saving ? "Saving…" : <><Save className="w-4 h-4" /> Save Notifications</>}
-        </Button>
-        <Button variant="outline" onClick={sendTest} disabled={testing} className="gap-2" data-testid="button-test-notification">
-          {testing ? "Sending…" : <><Bell className="w-4 h-4" /> Send Test</>}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ── Overview tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ pw, onNavigate }: { pw: string; onNavigate: (tab: Tab) => void }) {
-  const [rev, setRev] = useState<RevenueData | null>(null);
-  const [licenses, setLicenses] = useState<{ total: number; licenses: License[] } | null>(null);
-  const [tickets, setTickets] = useState<{ total: number; tickets: { status: string; createdAt: string; subject: string; name: string }[] } | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  async function load() {
-    setLoading(true);
-    const [rRes, lRes, tRes] = await Promise.all([
-      fetch(`${API_BASE}/api/admin/revenue`,  { headers: { "x-admin-password": pw } }),
-      fetch(`${API_BASE}/api/admin/licenses`, { headers: { "x-admin-password": pw } }),
-      fetch(`${API_BASE}/api/tickets`,        { headers: { "x-admin-password": pw } }),
-    ]);
-    if (rRes.ok) setRev(await rRes.json());
-    if (lRes.ok) setLicenses(await lRes.json());
-    if (tRes.ok) setTickets(await tRes.json());
-    setLoading(false);
-  }
-
-  useEffect(() => { load(); }, []);
-
-  function fmt(n: number) { return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
-  function fmtMonth(s: string) {
-    const [y, m] = s.split("-");
-    return new Date(Number(y), Number(m) - 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-  }
-
-  const now = Date.now();
-  const licenseList = licenses?.licenses ?? [];
-  const active       = licenseList.filter(l => !l.expiresAt || new Date(l.expiresAt).getTime() > now);
-  const expired      = licenseList.filter(l => l.expiresAt && new Date(l.expiresAt).getTime() <= now);
-  const expiringSoon = licenseList.filter(l => {
-    if (!l.expiresAt) return false;
-    const ms = new Date(l.expiresAt).getTime() - now;
-    return ms > 0 && ms < 7 * 24 * 60 * 60 * 1000;
-  });
-  const openTickets  = (tickets?.tickets ?? []).filter(t => t.status === "open");
-  const recentLicenses = [...licenseList].sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime()).slice(0, 5);
-  const last6 = (rev?.monthly ?? []).slice(-6);
-  const maxRev = Math.max(...last6.map(m => m.revenue), 1);
-
-  if (loading) return <div className="text-center py-20 text-muted-foreground text-sm">Loading overview…</div>;
-
-  return (
-    <div className="space-y-6" data-testid="section-overview">
-      {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card data-testid="card-overview-revenue">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Revenue</span>
-              <DollarSign className="w-4 h-4 text-emerald-500" />
-            </div>
-            <p className="text-2xl font-bold text-emerald-600" data-testid="text-overview-revenue">{fmt(rev?.totalRevenue ?? 0)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{rev?.paidLicenses ?? 0} paid license{rev?.paidLicenses !== 1 ? "s" : ""}</p>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-overview-mrr">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Est. MRR</span>
-              <TrendingUp className="w-4 h-4 text-blue-500" />
-            </div>
-            <p className="text-2xl font-bold text-blue-600" data-testid="text-overview-mrr">{fmt(rev?.mrr ?? 0)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">active subscriptions</p>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-overview-active">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active Licenses</span>
-              <Users className="w-4 h-4 text-violet-500" />
-            </div>
-            <p className="text-2xl font-bold text-violet-600" data-testid="text-overview-active">{active.length}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">of {licenseList.length} total issued</p>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-overview-tickets">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Open Tickets</span>
-              <TicketCheck className="w-4 h-4 text-amber-500" />
-            </div>
-            <p className={`text-2xl font-bold ${openTickets.length > 0 ? "text-amber-600" : "text-gray-400"}`} data-testid="text-overview-tickets">
-              {openTickets.length}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">{tickets?.total ?? 0} total tickets</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Middle row: license status + mini revenue chart */}
-      <div className="grid md:grid-cols-2 gap-4">
-        {/* License status breakdown */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-muted-foreground" /> License Status
-              </CardTitle>
-              <button onClick={() => onNavigate("licenses")} className="text-xs text-primary hover:underline flex items-center gap-1">
-                Manage <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { label: "Active",        value: active.length,       icon: <CheckCircle2 className="w-4 h-4 text-green-500" />,  bar: "bg-green-500",  pct: licenseList.length ? active.length / licenseList.length : 0 },
-              { label: "Expiring soon", value: expiringSoon.length, icon: <Clock className="w-4 h-4 text-amber-500" />,         bar: "bg-amber-400",  pct: licenseList.length ? expiringSoon.length / licenseList.length : 0 },
-              { label: "Expired",       value: expired.length,      icon: <XCircle className="w-4 h-4 text-red-400" />,         bar: "bg-red-400",    pct: licenseList.length ? expired.length / licenseList.length : 0 },
-            ].map(s => (
-              <div key={s.label} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">{s.icon}<span className="font-medium">{s.label}</span></div>
-                  <span className="font-bold tabular-nums">{s.value}</span>
-                </div>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${s.bar}`} style={{ width: `${s.pct * 100}%` }} />
-                </div>
-              </div>
-            ))}
-            {licenseList.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-2">No licenses issued yet.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Mini revenue sparkline */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-muted-foreground" /> Revenue (last 6 months)
-              </CardTitle>
-              <button onClick={() => onNavigate("revenue")} className="text-xs text-primary hover:underline flex items-center gap-1">
-                Full report <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {last6.every(m => m.revenue === 0) ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">No revenue recorded yet.</div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-end gap-1.5 h-28" data-testid="chart-overview-revenue">
-                  {last6.map(m => (
-                    <div key={m.month} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-                      <span className="text-[9px] font-medium text-emerald-700">{m.revenue > 0 ? fmt(m.revenue) : ""}</span>
-                      <div
-                        className="w-full bg-emerald-500 rounded-t hover:bg-emerald-600 transition-colors"
-                        style={{ height: `${Math.max(4, (m.revenue / maxRev) * 80)}px` }}
-                        title={`${fmtMonth(m.month)}: ${fmt(m.revenue)}`}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-1.5">
-                  {last6.map(m => (
-                    <div key={m.month} className="flex-1 text-center">
-                      <span className="text-[9px] text-muted-foreground">{fmtMonth(m.month)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Plan breakdown */}
-      {rev && rev.byPlan.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="w-4 h-4 text-muted-foreground" /> Subscriptions by Plan
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {rev.byPlan.map(p => {
-                const label = PLAN_LABELS[p.planId] ?? p.planId;
-                const color = PLAN_COLORS[p.planId] ?? "bg-gray-400";
-                return (
-                  <div key={p.planId} className="rounded-xl border bg-muted/30 px-4 py-3 text-center" data-testid={`card-plan-${p.planId}`}>
-                    <div className={`w-2 h-2 rounded-full ${color} mx-auto mb-2`} />
-                    <p className="text-xl font-bold">{p.count}</p>
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="text-xs font-semibold text-emerald-600 mt-0.5">{fmt(p.revenue)}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recent licenses */}
-      {recentLicenses.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground" /> Recent Licenses
-              </CardTitle>
-              <button onClick={() => onNavigate("licenses")} className="text-xs text-primary hover:underline flex items-center gap-1">
-                View all <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y">
-              {recentLicenses.map((l, i) => {
-                const exp = l.expiresAt ? new Date(l.expiresAt).getTime() : null;
-                const isExpired = exp !== null && exp < now;
-                const isSoon    = exp !== null && !isExpired && exp - now < 7 * 24 * 60 * 60 * 1000;
-                return (
-                  <div key={l.licenseKey} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors" data-testid={`row-recent-license-${i}`}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded shrink-0">{l.licenseKey.slice(0, 16)}…</code>
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground truncate">{l.email ?? (l.txHash === "MANUAL" ? "Manual" : l.txHash?.slice(0, 12) + "…")}</p>
-                        {l.planId && <p className="text-[10px] text-muted-foreground/60">{PLAN_LABELS[l.planId] ?? l.planId}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {isExpired ? (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700">Expired</span>
-                      ) : isSoon ? (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Expiring</span>
-                      ) : (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700">Active</span>
-                      )}
-                      <span className="text-[10px] text-muted-foreground">{fmtDate(l.issuedAt)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={load} className="gap-1.5" data-testid="button-refresh-overview">
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ── Revenue tab ────────────────────────────────────────────────────────────────
-interface RevenueData {
-  totalRevenue: number;
-  mrr: number;
-  totalLicenses: number;
-  activeLicenses: number;
-  paidLicenses: number;
-  withEmail: number;
-  byPlan: { planId: string; count: number; revenue: number }[];
-  monthly: { month: string; activations: number; revenue: number }[];
-}
-
-const PLAN_LABELS: Record<string, string> = {
-  monthly: "Monthly", quarterly: "3-Month", biannual: "6-Month", annual: "Annual",
-};
-const PLAN_COLORS: Record<string, string> = {
-  monthly: "bg-blue-500", quarterly: "bg-violet-500", biannual: "bg-amber-500", annual: "bg-emerald-500",
-};
-
-function RevenueTab({ pw }: { pw: string }) {
-  const [data, setData] = useState<RevenueData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  async function load() {
-    setLoading(true); setError("");
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/revenue`, { headers: { "x-admin-password": pw } });
-      if (!res.ok) throw new Error("Failed to load");
-      setData(await res.json());
-    } catch { setError("Could not load revenue data."); }
-    finally { setLoading(false); }
-  }
-
-  useEffect(() => { load(); }, []);
-
-  if (loading) return <div className="text-center py-20 text-muted-foreground text-sm">Loading revenue data…</div>;
-  if (error || !data) return (
-    <div className="text-center py-20 space-y-2">
-      <p className="text-muted-foreground text-sm">{error || "No data"}</p>
-      <Button variant="outline" size="sm" onClick={load}>Retry</Button>
-    </div>
-  );
-
-  const maxMonthlyRev = Math.max(...data.monthly.map(m => m.revenue), 1);
-  const maxMonthlyAct = Math.max(...data.monthly.map(m => m.activations), 1);
-  const maxPlanRev    = Math.max(...data.byPlan.map(p => p.revenue), 1);
-  const last13 = data.monthly.slice(-13);
-
-  function fmt(n: number) { return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
-  function fmtMonth(s: string) {
-    const [y, m] = s.split("-");
-    return new Date(Number(y), Number(m) - 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card data-testid="card-total-revenue">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Revenue</span>
-              <DollarSign className="w-4 h-4 text-emerald-500" />
-            </div>
-            <p className="text-2xl font-bold text-emerald-600" data-testid="text-total-revenue">{fmt(data.totalRevenue)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{data.paidLicenses} paid license{data.paidLicenses !== 1 ? "s" : ""}</p>
-          </CardContent>
-        </Card>
-        <Card data-testid="card-mrr">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Est. MRR</span>
-              <TrendingUp className="w-4 h-4 text-blue-500" />
-            </div>
-            <p className="text-2xl font-bold text-blue-600" data-testid="text-mrr">{fmt(data.mrr)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">from active subscriptions</p>
-          </CardContent>
-        </Card>
-        <Card data-testid="card-active-licenses">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active</span>
-              <Users className="w-4 h-4 text-violet-500" />
-            </div>
-            <p className="text-2xl font-bold text-violet-600" data-testid="text-active-licenses">{data.activeLicenses}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">of {data.totalLicenses} total issued</p>
-          </CardContent>
-        </Card>
-        <Card data-testid="card-arpu">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ARPU</span>
-              <Activity className="w-4 h-4 text-amber-500" />
-            </div>
-            <p className="text-2xl font-bold text-amber-600" data-testid="text-arpu">
-              {fmt(data.paidLicenses > 0 ? data.totalRevenue / data.paidLicenses : 0)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">avg revenue per user</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Monthly revenue chart */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-muted-foreground" /> Monthly Revenue (last 13 months)
-            </CardTitle>
-            <Button variant="ghost" size="sm" onClick={load} className="h-7 px-2" data-testid="button-refresh-revenue">
-              <RefreshCw className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {last13.every(m => m.revenue === 0) ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">No paid license revenue recorded yet.</div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-end gap-1 h-40" data-testid="chart-monthly-revenue">
-                {last13.map(m => (
-                  <div key={m.month} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-                    <div
-                      className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
-                      style={{ height: `${Math.max(2, (m.revenue / maxMonthlyRev) * 140)}px` }}
-                      title={`${fmtMonth(m.month)}: ${fmt(m.revenue)}`}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-1">
-                {last13.map(m => (
-                  <div key={m.month} className="flex-1 text-center min-w-0">
-                    <span className="text-[9px] text-muted-foreground truncate block">{fmtMonth(m.month)}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-1 mt-1">
-                {last13.map(m => (
-                  <div key={m.month} className="flex-1 text-center min-w-0">
-                    <span className="text-[9px] font-medium text-blue-700 truncate block">{m.revenue > 0 ? fmt(m.revenue) : ""}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Monthly activations chart */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-muted-foreground" /> Monthly Activations (last 13 months)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {last13.every(m => m.activations === 0) ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">No activations recorded yet.</div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-end gap-1 h-32" data-testid="chart-monthly-activations">
-                {last13.map(m => (
-                  <div key={m.month} className="flex-1 flex flex-col items-center min-w-0">
-                    <div
-                      className="w-full bg-violet-400 rounded-t transition-all hover:bg-violet-500"
-                      style={{ height: `${Math.max(2, (m.activations / maxMonthlyAct) * 112)}px` }}
-                      title={`${fmtMonth(m.month)}: ${m.activations} activation${m.activations !== 1 ? "s" : ""}`}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-1">
-                {last13.map(m => (
-                  <div key={m.month} className="flex-1 text-center min-w-0">
-                    <span className="text-[9px] text-muted-foreground truncate block">{fmtMonth(m.month)}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-1 mt-1">
-                {last13.map(m => (
-                  <div key={m.month} className="flex-1 text-center min-w-0">
-                    <span className="text-[9px] font-medium text-violet-700 truncate block">{m.activations > 0 ? m.activations : ""}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Revenue by plan */}
-      {data.byPlan.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Revenue by Plan</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3" data-testid="section-revenue-by-plan">
-            {data.byPlan.map(p => (
-              <div key={p.planId} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{PLAN_LABELS[p.planId] ?? p.planId}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-muted-foreground text-xs">{p.count} license{p.count !== 1 ? "s" : ""}</span>
-                    <span className="font-semibold w-20 text-right">{fmt(p.revenue)}</span>
-                  </div>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${PLAN_COLORS[p.planId] ?? "bg-gray-400"}`}
-                    style={{ width: `${(p.revenue / maxPlanRev) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-            <div className="pt-2 border-t flex items-center justify-between text-sm font-semibold">
-              <span>Total</span>
-              <span className="text-emerald-600">{fmt(data.totalRevenue)}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {data.byPlan.length === 0 && (
-        <Card>
-          <CardContent className="py-10 text-center text-muted-foreground text-sm">
-            No paid license sales yet. Revenue will appear here once customers purchase subscriptions.
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-// ── Main admin page ───────────────────────────────────────────────────────────
-type Tab = "overview" | "licenses" | "revenue" | "subscriptions" | "tickets" | "payment" | "appearance" | "notifications" | "backup" | "setup";
-
-// ── Tickets tab ────────────────────────────────────────────────────────────────
-interface Ticket {
-  id: string; name: string; email: string; licenseKey: string | null;
-  category: string; subject: string; message: string;
-  status: "open" | "resolved" | "closed"; createdAt: string;
-  adminReply: string | null; repliedAt: string | null;
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  open:     "bg-amber-100 text-amber-700",
-  resolved: "bg-green-100 text-green-700",
-  closed:   "bg-gray-100 text-gray-600",
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  general: "General", billing: "Billing", license: "License",
-  bug: "Bug", feature: "Feature", other: "Other",
-};
-
-function TicketsTab({ pw }: { pw: string }) {
-  const [data, setData] = useState<{ total: number; tickets: Ticket[] } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<"" | "open" | "resolved" | "closed">("");
-  const [selected, setSelected] = useState<Ticket | null>(null);
-  const [reply, setReply] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
-
-  async function load() {
-    setLoading(true);
-    const url = filter ? `${API_BASE}/api/tickets?status=${filter}` : `${API_BASE}/api/tickets`;
-    const res = await fetch(url, { headers: { "x-admin-password": pw } });
-    if (res.ok) setData(await res.json());
-    setLoading(false);
-  }
-
-  useEffect(() => { load(); }, [filter]);
-
-  async function updateTicket(id: string, patch: { status?: string; adminReply?: string }) {
-    setSaving(true);
-    const res = await fetch(`${API_BASE}/api/tickets/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", "x-admin-password": pw },
-      body: JSON.stringify(patch),
-    });
-    setSaving(false);
-    if (res.ok) { await load(); setSelected(null); setReply(""); }
-  }
-
-  async function deleteTicket(id: string) {
-    setDeleting(id);
-    await fetch(`${API_BASE}/api/tickets/${id}`, { method: "DELETE", headers: { "x-admin-password": pw } });
-    setDeleting(null);
-    if (selected?.id === id) setSelected(null);
-    load();
-  }
-
-  const tickets = data?.tickets ?? [];
-  const openCount = data ? (data.tickets.filter(t => t.status === "open").length) : 0;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold">Support Tickets</h2>
-          <p className="text-sm text-muted-foreground">{data?.total ?? 0} total · {openCount} open</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={filter}
-            onChange={e => setFilter(e.target.value as typeof filter)}
-            className="text-sm border border-border rounded-lg px-2.5 py-1.5 bg-white"
-          >
-            <option value="">All</option>
-            <option value="open">Open</option>
-            <option value="resolved">Resolved</option>
-            <option value="closed">Closed</option>
-          </select>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
-      </div>
-
-      {loading && <div className="text-center py-12 text-muted-foreground text-sm">Loading…</div>}
-
-      {!loading && tickets.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground text-sm">No tickets found.</div>
-      )}
-
-      {/* Detail view */}
-      {selected && (
-        <Card className="border-primary/30">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${STATUS_COLORS[selected.status]}`}>
-                    {selected.status.toUpperCase()}
-                  </span>
-                  <span className="text-xs font-mono text-muted-foreground">{selected.id}</span>
-                  <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                    {CATEGORY_LABELS[selected.category] ?? selected.category}
-                  </span>
-                </div>
-                <CardTitle className="text-base leading-snug">{selected.subject}</CardTitle>
-              </div>
-              <button onClick={() => { setSelected(null); setReply(""); }}
-                className="text-muted-foreground hover:text-foreground shrink-0">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-xs space-y-0.5 text-muted-foreground">
-              <p><span className="font-semibold text-foreground">From:</span> {selected.name} &lt;{selected.email}&gt;</p>
-              {selected.licenseKey && <p><span className="font-semibold text-foreground">License:</span> <code className="font-mono">{selected.licenseKey}</code></p>}
-              <p><span className="font-semibold text-foreground">Received:</span> {fmtDate(selected.createdAt)}</p>
-            </div>
-            <div className="bg-muted/50 rounded-lg p-3 text-sm leading-relaxed whitespace-pre-wrap border border-border">
-              {selected.message}
-            </div>
-
-            {selected.adminReply && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1">
-                <p className="text-xs font-bold text-blue-700">Your Reply · {selected.repliedAt ? fmtDate(selected.repliedAt) : ""}</p>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{selected.adminReply}</p>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold">{selected.adminReply ? "Update Reply" : "Reply to Customer"}</label>
-              <textarea
-                value={reply}
-                onChange={e => setReply(e.target.value)}
-                placeholder="Type your reply…"
-                rows={4}
-                className="w-full rounded-lg border border-border p-3 text-sm resize-none focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => updateTicket(selected.id, { adminReply: reply })} disabled={saving || !reply.trim()}>
-                {saving ? "Saving…" : "Send Reply"}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => updateTicket(selected.id, { status: "resolved" })} disabled={saving}>
-                Mark Resolved
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => updateTicket(selected.id, { status: "closed" })} disabled={saving}>
-                Close
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => updateTicket(selected.id, { status: "open" })} disabled={saving}>
-                Reopen
-              </Button>
-              <Button size="sm" variant="destructive" onClick={() => deleteTicket(selected.id)} disabled={!!deleting}>
-                Delete
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Ticket list */}
-      {!loading && tickets.length > 0 && (
-        <div className="space-y-2">
-          {tickets.map(ticket => (
-            <div key={ticket.id}
-              onClick={() => { setSelected(ticket); setReply(ticket.adminReply ?? ""); }}
-              className={`bg-white border rounded-xl p-4 cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all ${selected?.id === ticket.id ? "border-primary/60 shadow-sm" : "border-border"}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_COLORS[ticket.status]}`}>
-                      {ticket.status}
-                    </span>
-                    <span className="text-[11px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
-                      {CATEGORY_LABELS[ticket.category] ?? ticket.category}
-                    </span>
-                    <span className="text-[11px] font-mono text-muted-foreground">{ticket.id}</span>
-                  </div>
-                  <p className="text-sm font-semibold truncate">{ticket.subject}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{ticket.name} · {ticket.email}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-[11px] text-muted-foreground">{fmtDate(ticket.createdAt)}</p>
-                  {ticket.adminReply && (
-                    <p className="text-[11px] text-green-600 font-semibold mt-0.5">Replied</p>
-                  )}
-                </div>
-              </div>
-            </div>
+        <nav className="flex-1 p-2 space-y-0.5">
+          {NAV.map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => setSection(id)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-xs transition-colors ${
+                section === id ? "bg-sidebar-accent text-sidebar-accent-foreground font-bold" : "hover:bg-sidebar-accent/50"
+              }`}>
+              <Icon className="w-4 h-4 shrink-0" />{label}
+            </button>
           ))}
+        </nav>
+        <div className="p-3 border-t border-sidebar-border">
+          <a href="/" className="flex items-center gap-2 text-xs text-sidebar-foreground opacity-60 hover:opacity-100">
+            <Settings className="w-3.5 h-3.5" /> Back to Add-in
+          </a>
         </div>
-      )}
-    </div>
-  );
-}
+      </aside>
 
-// ── Subscriptions health tab ──────────────────────────────────────────────────
-interface Subscription {
-  subscriptionId: string;
-  planId?: string;
-  status: "Subscribed" | "Unsubscribed" | "Suspended" | string;
-  beneficiary?: { emailId?: string; objectId?: string };
-  purchaser?:   { emailId?: string; objectId?: string };
-  activatedAt?: string;
-  updatedAt?:   string;
-  offerId?:     string;
-  quantity?:    number;
-}
-
-function SubscriptionsTab({ pw }: { pw: string }) {
-  const [subs, setSubs]       = useState<Subscription[] | null>(null);
-  const [licenses, setLicenses] = useState<License[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
-
-  async function loadAll() {
-    setLoading(true); setError("");
-    try {
-      const [subRes, licRes] = await Promise.all([
-        fetch(`${API_BASE}/api/saas/subscriptions`, { headers: { "x-admin-password": pw } }),
-        fetch(`${API_BASE}/api/admin/licenses`,     { headers: { "x-admin-password": pw } }),
-      ]);
-      if (!subRes.ok) throw new Error(`Subscriptions API error (${subRes.status})`);
-      if (!licRes.ok) throw new Error(`Licenses API error (${licRes.status})`);
-      const subData = await subRes.json();
-      const licData = await licRes.json();
-      setSubs(Array.isArray(subData) ? subData : []);
-      setLicenses(licData.licenses ?? []);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { loadAll(); }, []);
-
-  // Build a lookup: subscriptionId → license
-  const licBySubId = (licenses ?? []).reduce<Record<string, License>>((acc, l) => {
-    if (l.txHash && l.txHash !== "MANUAL") acc[l.txHash] = l;
-    return acc;
-  }, {});
-
-  const now = Date.now();
-
-  function licenseStatus(sub: Subscription): { label: string; color: string } {
-    const lic = licBySubId[sub.subscriptionId];
-    if (!lic) return { label: "No license", color: "bg-gray-100 text-gray-600" };
-    if (lic.expiresAt && new Date(lic.expiresAt).getTime() < now)
-      return { label: "Expired", color: "bg-red-100 text-red-700" };
-    return { label: "Active", color: "bg-green-100 text-green-700" };
-  }
-
-  function healthFlag(sub: Subscription): { text: string; className: string } | null {
-    const lic = licBySubId[sub.subscriptionId];
-    const licActive = lic && (!lic.expiresAt || new Date(lic.expiresAt).getTime() > now);
-    if ((sub.status === "Unsubscribed" || sub.status === "Suspended") && licActive)
-      return { text: "⚠ Cancelled but license active", className: "bg-amber-100 text-amber-800" };
-    if (sub.status === "Subscribed" && !licActive)
-      return { text: "⚠ Paying — no active license", className: "bg-red-100 text-red-800" };
-    return null;
-  }
-
-  const counts = (subs ?? []).reduce(
-    (acc, s) => {
-      acc[s.status] = (acc[s.status] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-  const flaggedCount = (subs ?? []).filter(s => healthFlag(s) !== null).length;
-
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-semibold">AppSource Subscription Health</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Live view of Microsoft subscription states, cross-referenced with license data.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={loadAll} disabled={loading} className="gap-1.5">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </Button>
-      </div>
-
-      {/* KPI row */}
-      {!loading && !error && subs !== null && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Subscribed",   value: counts["Subscribed"]   ?? 0, cls: "bg-green-50 border-green-200 text-green-700" },
-            { label: "Suspended",    value: counts["Suspended"]    ?? 0, cls: "bg-amber-50 border-amber-200 text-amber-700" },
-            { label: "Unsubscribed", value: counts["Unsubscribed"] ?? 0, cls: "bg-gray-50 border-gray-200 text-gray-600"   },
-            { label: "Health flags", value: flaggedCount,               cls: flaggedCount > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700" },
-          ].map(k => (
-            <div key={k.label} className={`rounded-xl border px-4 py-3 text-center ${k.cls}`}>
-              <p className="text-2xl font-bold">{k.value}</p>
-              <p className="text-xs mt-0.5 opacity-80">{k.label}</p>
+      {/* Main */}
+      <main className="flex-1 overflow-auto">
+        {section === "dashboard" && (
+          <div className="p-6 space-y-6">
+            <h1 className="text-xl font-black">Dashboard</h1>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { label: "Organizations",  value: "415",    color: "stat-blue"   },
+                { label: "Licensed Users", value: "12,847", color: "stat-purple" },
+                { label: "Backups Today",  value: "3,241",  color: "stat-green"  },
+                { label: "Failed Jobs",    value: "12",     color: "stat-red"    },
+              ].map(({ label, value, color }) => (
+                <div key={label} className={`rounded-2xl p-4 ${color}`}>
+                  <p className="text-2xl font-black">{value}</p>
+                  <p className="text-xs opacity-75 mt-1">{label}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Loading / error states */}
-      {loading && (
-        <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
-          <RefreshCw className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Loading subscriptions…</span>
-        </div>
-      )}
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
-          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-red-800">Could not load subscriptions</p>
-            <p className="text-xs text-red-700 mt-0.5 font-mono">{error}</p>
-            <p className="text-xs text-red-600 mt-1">
-              Make sure <code className="bg-red-100 px-1 rounded">AZURE_TENANT_ID</code>,{" "}
-              <code className="bg-red-100 px-1 rounded">AZURE_CLIENT_ID</code>, and{" "}
-              <code className="bg-red-100 px-1 rounded">AZURE_CLIENT_SECRET</code> are set.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!loading && !error && subs?.length === 0 && (
-        <Card>
-          <CardContent className="py-16 text-center space-y-2">
-            <Activity className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-            <p className="text-sm font-medium text-muted-foreground">No AppSource subscriptions yet</p>
-            <p className="text-xs text-muted-foreground/70">
-              Subscriptions appear here once customers purchase via AppSource and complete the landing page flow.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Subscription table */}
-      {!loading && !error && subs && subs.length > 0 && (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50/60">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Subscriber</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Plan</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">MS Status</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">License</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Health</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Activated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subs.map((sub, i) => {
-                    const email    = sub.beneficiary?.emailId ?? sub.purchaser?.emailId ?? "—";
-                    const lic      = licBySubId[sub.subscriptionId];
-                    const licStat  = licenseStatus(sub);
-                    const flag     = healthFlag(sub);
-                    const statusColor =
-                      sub.status === "Subscribed"   ? "bg-green-100 text-green-700" :
-                      sub.status === "Suspended"    ? "bg-amber-100 text-amber-700" :
-                      sub.status === "Unsubscribed" ? "bg-gray-100 text-gray-600"   :
-                                                      "bg-blue-100 text-blue-700";
+            <div className="bg-white border border-border rounded-2xl p-4">
+              <p className="text-sm font-black mb-4">Backups This Week</p>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={BACKUP_TREND} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                  <XAxis dataKey="day" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="count" name="Backups" radius={[4, 4, 0, 0]}>
+                    {BACKUP_TREND.map((_, i) => <Cell key={i} fill={i === 3 ? "#0078d4" : "#93c4f0"} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white border border-border rounded-2xl p-4 space-y-3">
+                <p className="text-sm font-black">System Health</p>
+                {[
+                  { label: "API",     pct: 100, color: "bg-green-500"  },
+                  { label: "Storage", pct: 68,  color: "bg-blue-500"   },
+                  { label: "Queue",   pct: 12,  color: "bg-amber-500"  },
+                  { label: "DB",      pct: 34,  color: "bg-purple-500" },
+                ].map(({ label, pct, color }) => (
+                  <div key={label} className="space-y-1">
+                    <div className="flex justify-between text-xs"><span>{label}</span><span className="font-bold">{pct}%</span></div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-white border border-border rounded-2xl p-4">
+                <p className="text-sm font-black mb-3">Recent Jobs</p>
+                <div className="space-y-2">
+                  {MOCK_JOBS.slice(0, 4).map(j => {
+                    const StatusIcon = STATUS_ICON[j.status] ?? Clock;
                     return (
-                      <tr key={sub.subscriptionId} data-testid={`row-sub-${i}`}
-                        className={`border-b last:border-0 transition-colors ${flag ? "bg-amber-50/30 hover:bg-amber-50/60" : "hover:bg-gray-50"}`}>
-                        {/* Subscriber email */}
+                      <div key={j.id} className="flex items-center gap-2">
+                        <StatusIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold truncate">{j.type} — {j.user.split("@")[0]}</p>
+                          <p className="text-[9px] text-muted-foreground">{j.started}</p>
+                        </div>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_CLS[j.status]}`}>{j.status}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {section === "organizations" && (
+          <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-black">Organizations</h1>
+              <div className="relative"><Search className="w-4 h-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+                <Input className="pl-8 w-52 text-xs" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+            </div>
+            <div className="bg-white border border-border rounded-2xl overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-muted text-muted-foreground">
+                  <tr>{["Organization","Users","Seats","Plan","Storage","Status"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {MOCK_ORGS.filter(o => o.name.toLowerCase().includes(search.toLowerCase())).map(org => {
+                    const StatusIcon = STATUS_ICON[org.status] ?? Clock;
+                    return (
+                      <tr key={org.id} className="hover:bg-muted/50">
+                        <td className="px-4 py-3 font-bold">{org.name}</td>
+                        <td className="px-4 py-3">{org.users}</td>
+                        <td className="px-4 py-3">{org.seats}</td>
+                        <td className="px-4 py-3">{org.plan}</td>
+                        <td className="px-4 py-3">{org.storage}</td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs font-medium" data-testid={`text-sub-email-${i}`}>{email}</span>
-                            {email !== "—" && <CopyBtn text={email} />}
-                          </div>
-                          <span className="text-[10px] text-muted-foreground font-mono">{sub.subscriptionId.slice(0, 16)}…</span>
-                        </td>
-                        {/* Plan */}
-                        <td className="px-4 py-3">
-                          {sub.planId ? (
-                            <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700 border-0">{sub.planId}</Badge>
-                          ) : <span className="text-xs text-muted-foreground">—</span>}
-                        </td>
-                        {/* MS Status */}
-                        <td className="px-4 py-3">
-                          <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusColor}`} data-testid={`status-sub-${i}`}>
-                            {sub.status}
+                          <span className={`flex items-center gap-1 w-fit text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLS[org.status]}`}>
+                            <StatusIcon className="w-3 h-3" />{org.status}
                           </span>
-                        </td>
-                        {/* License status */}
-                        <td className="px-4 py-3">
-                          <div className="space-y-1">
-                            <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${licStat.color}`}>
-                              {licStat.label}
-                            </span>
-                            {lic && (
-                              <div className="flex items-center gap-1">
-                                <code className="text-[10px] font-mono text-muted-foreground">{lic.licenseKey.slice(0, 12)}…</code>
-                                <CopyBtn text={lic.licenseKey} />
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        {/* Health flag */}
-                        <td className="px-4 py-3">
-                          {flag ? (
-                            <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${flag.className}`} data-testid={`flag-sub-${i}`}>
-                              {flag.text}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-green-600 font-semibold flex items-center gap-0.5">
-                              <CheckCircle2 className="w-3 h-3" /> OK
-                            </span>
-                          )}
-                        </td>
-                        {/* Activated */}
-                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                          {sub.activatedAt ? fmtDate(sub.activatedAt) : "—"}
                         </td>
                       </tr>
                     );
@@ -2427,114 +243,149 @@ function SubscriptionsTab({ pw }: { pw: string }) {
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Flag legend */}
-      {!loading && !error && flaggedCount > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
-          <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5" /> Health flag guide
-          </p>
-          <div className="space-y-1 text-xs text-amber-700">
-            <p><span className="font-semibold">⚠ Paying — no active license</span> — subscription is active on AppSource but the customer has no valid license key. Check whether the activation landing page was completed.</p>
-            <p><span className="font-semibold">⚠ Cancelled but license active</span> — Microsoft marked the subscription Unsubscribed or Suspended, but the customer still has a non-expired license key. Consider revoking it from the Licenses tab.</p>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "overview",      label: "Overview",       icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: "licenses",      label: "Licenses",       icon: <KeyRound className="w-4 h-4" /> },
-  { id: "revenue",       label: "Revenue",        icon: <TrendingUp className="w-4 h-4" /> },
-  { id: "subscriptions", label: "Subscriptions",  icon: <Activity className="w-4 h-4" /> },
-  { id: "tickets",       label: "Tickets",        icon: <TicketCheck className="w-4 h-4" /> },
-  { id: "payment",       label: "Payment",        icon: <CreditCard className="w-4 h-4" /> },
-  { id: "notifications", label: "Notifications",  icon: <Bell className="w-4 h-4" /> },
-  { id: "appearance",    label: "Appearance",     icon: <Palette className="w-4 h-4" /> },
-  { id: "backup",        label: "Backup",         icon: <Database className="w-4 h-4" /> },
-  { id: "setup",         label: "Setup Guide",    icon: <Rocket className="w-4 h-4" /> },
-];
-
-export default function AdminPage() {
-  const [pw, setPw] = useState(() => sessionStorage.getItem("admin_pw") ?? "");
-  const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState<Tab>("overview");
-  const [settings, setSettings] = useState<Settings | null>(null);
-
-  async function loadSettings(password: string) {
-    const res = await fetch(`${API_BASE}/api/admin/settings`, { headers: { "x-admin-password": password } });
-    if (res.ok) setSettings(await res.json());
-  }
-
-  function handleLogin(password: string) {
-    setPw(password);
-    setAuthed(true);
-    loadSettings(password);
-  }
-
-  function logout() {
-    sessionStorage.removeItem("admin_pw");
-    setAuthed(false); setSettings(null); setPw("");
-  }
-
-  // Auto-login from session
-  useEffect(() => {
-    const saved = sessionStorage.getItem("admin_pw");
-    if (saved) {
-      fetch(`${API_BASE}/api/admin/settings`, { headers: { "x-admin-password": saved } })
-        .then(r => { if (r.ok) { setAuthed(true); return r.json(); } throw new Error(); })
-        .then(s => { setPw(saved); setSettings(s); })
-        .catch(() => { sessionStorage.removeItem("admin_pw"); });
-    }
-  }, []);
-
-  if (!authed) return <LoginScreen onLogin={handleLogin} />;
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top bar */}
-      <div className="bg-white border-b px-4 md:px-8 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-primary" />
-          <span className="font-semibold text-sm">Admin Panel</span>
-          <span className="text-muted-foreground text-xs hidden sm:inline">· Financial Data Analyzer</span>
-        </div>
-        <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5">
-          <LogOut className="w-4 h-4" /> Logout
-        </Button>
-      </div>
-
-      <div className="max-w-4xl mx-auto p-4 md:p-8">
-        {/* Tabs */}
-        <div className="flex gap-1 bg-muted p-1 rounded-lg mb-6 w-fit">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === t.id ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              {t.icon} <span className="hidden sm:inline">{t.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        {tab === "overview"       && <OverviewTab pw={pw} onNavigate={setTab} />}
-        {tab === "licenses"       && <LicensesTab pw={pw} />}
-        {tab === "revenue"        && <RevenueTab pw={pw} />}
-        {tab === "subscriptions"  && <SubscriptionsTab pw={pw} />}
-        {tab === "tickets"        && <TicketsTab pw={pw} />}
-        {tab === "payment"       && settings && <PaymentTab pw={pw} settings={settings} onSaved={setSettings} />}
-        {tab === "notifications" && settings && <NotificationsTab pw={pw} settings={settings} onSaved={setSettings} />}
-        {tab === "appearance"    && settings && <AppearanceTab pw={pw} settings={settings} onSaved={setSettings} />}
-        {tab === "backup"        && <BackupTab pw={pw} />}
-        {tab === "setup"         && <SetupTab />}
-        {(tab === "payment" || tab === "appearance" || tab === "notifications") && !settings && (
-          <div className="text-center py-12 text-muted-foreground text-sm">Loading settings…</div>
         )}
-      </div>
+
+        {section === "users" && (
+          <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-black">Users</h1>
+              <div className="relative"><Search className="w-4 h-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+                <Input className="pl-8 w-52 text-xs" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+            </div>
+            <div className="bg-white border border-border rounded-2xl overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-muted text-muted-foreground">
+                  <tr>{["Name","Email","Organization","Role","Last Seen","License"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {MOCK_USERS.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.includes(search)).map(user => (
+                    <tr key={user.id} className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-bold">{user.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
+                      <td className="px-4 py-3">{user.org}</td>
+                      <td className="px-4 py-3"><span className="status-badge-info text-[10px] px-2 py-0.5 rounded-full font-bold">{user.role}</span></td>
+                      <td className="px-4 py-3 text-muted-foreground">{user.lastSeen}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${user.licensed ? "status-badge-success" : "status-badge-neutral"}`}>
+                          {user.licensed ? "Licensed" : "Unlicensed"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {section === "licenses" && (
+          <div className="p-6 space-y-4">
+            <h1 className="text-xl font-black">License Management</h1>
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { label: "Total Seats Sold", value: "15,200", color: "stat-blue"   },
+                { label: "Active Seats",     value: "12,847", color: "stat-green"  },
+                { label: "Available Seats",  value: "2,353",  color: "stat-purple" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className={`rounded-2xl p-4 ${color}`}>
+                  <p className="text-2xl font-black">{value}</p>
+                  <p className="text-xs opacity-75 mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="bg-white border border-border rounded-2xl overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-muted text-muted-foreground">
+                  <tr>{["Organization","Plan","Seats","Used","Utilization","Status"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {MOCK_ORGS.map(org => {
+                    const pct = Math.round((org.users / org.seats) * 100);
+                    return (
+                      <tr key={org.id} className="hover:bg-muted/50">
+                        <td className="px-4 py-3 font-bold">{org.name}</td>
+                        <td className="px-4 py-3">{org.plan}</td>
+                        <td className="px-4 py-3">{org.seats}</td>
+                        <td className="px-4 py-3">{org.users}</td>
+                        <td className="px-4 py-3 w-36">
+                          <div className="flex items-center gap-2">
+                            <Progress value={pct} className="h-1.5 flex-1" />
+                            <span className="text-[10px] font-bold w-8 text-right">{pct}%</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLS[org.status]}`}>{org.status}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {section === "jobs" && (
+          <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-black">Job Monitor</h1>
+              <button className="flex items-center gap-1.5 text-xs font-bold bg-white border border-border px-3 py-2 rounded-lg hover:bg-muted">
+                <Download className="w-3.5 h-3.5" /> Export
+              </button>
+            </div>
+            <div className="bg-white border border-border rounded-2xl overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-muted text-muted-foreground">
+                  <tr>{["Type","User","Status","Started","Duration","Size"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {MOCK_JOBS.map(job => (
+                    <tr key={job.id} className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-bold">{job.type}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{job.user}</td>
+                      <td className="px-4 py-3"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLS[job.status]}`}>{job.status}</span></td>
+                      <td className="px-4 py-3 text-muted-foreground">{job.started}</td>
+                      <td className="px-4 py-3">{job.duration}</td>
+                      <td className="px-4 py-3">{job.size}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {section === "logs" && (
+          <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-black">Audit Logs</h1>
+              <button className="flex items-center gap-1.5 text-xs font-bold bg-white border border-border px-3 py-2 rounded-lg hover:bg-muted">
+                <Download className="w-3.5 h-3.5" /> Export CSV
+              </button>
+            </div>
+            <div className="bg-white border border-border rounded-2xl overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-muted text-muted-foreground">
+                  <tr>{["Action","User","Organization","Timestamp","Result"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {MOCK_LOGS.map(log => (
+                    <tr key={log.id} className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-bold">{log.action}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{log.user}</td>
+                      <td className="px-4 py-3">{log.org}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{log.ts}</td>
+                      <td className="px-4 py-3"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLS[log.result]}`}>{log.result}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
