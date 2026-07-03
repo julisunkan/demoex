@@ -5,9 +5,13 @@ import { AppConfigProvider } from "./context/AppConfigContext";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import App from "./App";
-import LandingPage from "./pages/landing";
-import AdminPage from "./pages/admin";
-import NotFound from "./pages/not-found";
+import LandingPage      from "./pages/landing";
+import AdminPage        from "./pages/admin";
+import DeploymentGuide  from "./pages/DeploymentGuide";
+import EulaPage         from "./pages/eula";
+import PrivacyPage      from "./pages/privacy";
+import SupportPage      from "./pages/support";
+import NotFound         from "./pages/not-found";
 import "./index.css";
 
 declare const Office: typeof import("@microsoft/office-js");
@@ -17,9 +21,13 @@ function Root() {
     <QueryClientProvider client={queryClient}>
       <AppConfigProvider>
         <Switch>
-          <Route path="/landing" component={LandingPage} />
-          <Route path="/admin"   component={AdminPage} />
-          <Route path="/"        component={App} />
+          <Route path="/landing"  component={LandingPage} />
+          <Route path="/admin"    component={AdminPage} />
+          <Route path="/deploy"   component={DeploymentGuide} />
+          <Route path="/eula"     component={EulaPage} />
+          <Route path="/privacy"  component={PrivacyPage} />
+          <Route path="/support"  component={SupportPage} />
+          <Route path="/"         component={App} />
           <Route component={NotFound} />
         </Switch>
         <Toaster />
