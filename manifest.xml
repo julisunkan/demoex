@@ -12,8 +12,8 @@
     https://www.uuidgenerator.net/ — each tenant installation should use the
     same stable GUID across updates.
   -->
-  <Id>a3f7c891-2b5d-4e8f-96c0-1d4e7f2a3b5c</Id>
-  <Version>1.0.0</Version>
+  <Id>bbfca9be-38a3-435c-8259-32e288dbe0c6</Id>
+  <Version>1.0.1</Version>
   <ProviderName>MailVault</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="MailVault Pro" />
@@ -25,15 +25,15 @@
     For production:  replace with your Render / custom domain, e.g.
                      https://your-app.onrender.com/icon-80.png
   -->
-  <IconUrl DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/icon-80.png" />
-  <HighResolutionIconUrl DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/icon-80.png" />
-  <SupportUrl DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/support" />
+  <IconUrl DefaultValue="https://financialdataanalyzer.onrender.com/icon-80.png" />
+  <HighResolutionIconUrl DefaultValue="https://financialdataanalyzer.onrender.com/icon-80.png" />
+  <SupportUrl DefaultValue="https://financialdataanalyzer.onrender.com/support" />
 
   <!-- ── Domain allowlist ──────────────────────────────────────────────────── -->
   <AppDomains>
-    <AppDomain>8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev</AppDomain>
+    <AppDomain>financialdataanalyzer.onrender.com</AppDomain>
     <!-- Add your production domain here once deployed, e.g.:
-    <AppDomain>your-app.onrender.com</AppDomain>
+    <AppDomain>financialdataanalyzer.onrender.com</AppDomain>
     -->
   </AppDomains>
 
@@ -52,8 +52,8 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/" />
-        <RequestedHeight>500</RequestedHeight>
+        <SourceLocation DefaultValue="https://financialdataanalyzer.onrender.com/" />
+        <RequestedHeight>450</RequestedHeight>
       </DesktopSettings>
     </Form>
   </FormSettings>
@@ -142,12 +142,12 @@
     <!-- ── Shared resource strings ─────────────────────────────────────────── -->
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16" DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/icon-16.png" />
-        <bt:Image id="Icon.32" DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/icon-32.png" />
-        <bt:Image id="Icon.80" DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/icon-80.png" />
+        <bt:Image id="Icon.16" DefaultValue="https://financialdataanalyzer.onrender.com/icon-16.png" />
+        <bt:Image id="Icon.32" DefaultValue="https://financialdataanalyzer.onrender.com/icon-32.png" />
+        <bt:Image id="Icon.80" DefaultValue="https://financialdataanalyzer.onrender.com/icon-80.png" />
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://8c1e92a0-e143-432c-9513-a63d95c8cefc-00-7vh3hi67y01v.spock.replit.dev/" />
+        <bt:Url id="Taskpane.Url" DefaultValue="https://financialdataanalyzer.onrender.com/" />
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel"  DefaultValue="MailVault Pro" />
