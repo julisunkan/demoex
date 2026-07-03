@@ -35,20 +35,11 @@ function generateLicenseKey() {
   return `MVP-${crypto.randomBytes(12).toString("hex").toUpperCase()}`;
 }
 
-const MOCK_SUMMARY = {
-  organizations: 415,
-  licensedUsers: 12847,
-  backupsToday:  3241,
-  failedJobs:    12,
-  totalStorage:  "48.2 TB",
-  activeJobs:    8,
-};
-
-router.get("/summary",       requireAdmin, (_req, res) => res.json(MOCK_SUMMARY));
-router.get("/organizations", requireAdmin, (_req, res) => res.json({ items: [], total: 415 }));
-router.get("/users",         requireAdmin, (_req, res) => res.json({ items: [], total: 12847 }));
-router.get("/jobs",          requireAdmin, (_req, res) => res.json({ items: [], total: 3241 }));
-router.get("/audit-logs",    requireAdmin, (_req, res) => res.json({ items: [], total: 48200 }));
+router.get("/summary",       requireAdmin, (_req, res) => res.json({ organizations: 0, licensedUsers: 0, backupsToday: 0, failedJobs: 0, totalStorage: "0 GB", activeJobs: 0 }));
+router.get("/organizations", requireAdmin, (_req, res) => res.json({ items: [], total: 0 }));
+router.get("/users",         requireAdmin, (_req, res) => res.json({ items: [], total: 0 }));
+router.get("/jobs",          requireAdmin, (_req, res) => res.json({ items: [], total: 0 }));
+router.get("/audit-logs",    requireAdmin, (_req, res) => res.json({ items: [], total: 0 }));
 
 /**
  * Site settings — appearance, USDT payment config, plans, notifications.

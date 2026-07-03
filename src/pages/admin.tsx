@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import {
   Shield, Users, Building2, Archive, BarChart3,
   Activity, Settings, AlertCircle, CheckCircle2,
@@ -25,42 +24,6 @@ interface UserRow  { id: string; name: string; email: string; org: string; role:
 interface JobRow   { id: string; type: string; user: string; status: string; started: string; duration: string; size: string; }
 interface LogRow   { id: string; action: string; user: string; org: string; ts: string; result: string; }
 
-const MOCK_ORGS: OrgRow[] = [
-  { id: "o1", name: "Contoso Ltd",       users: 120, seats: 150, plan: "Pro Annual",  status: "active",  storage: "1.2 TB" },
-  { id: "o2", name: "Fabrikam Inc",      users: 45,  seats: 50,  plan: "Pro Monthly", status: "active",  storage: "420 GB" },
-  { id: "o3", name: "Northwind Traders", users: 8,   seats: 10,  plan: "Pro Monthly", status: "trial",   storage: "84 GB"  },
-  { id: "o4", name: "Adventure Works",   users: 230, seats: 250, plan: "Pro Annual",  status: "active",  storage: "3.1 TB" },
-  { id: "o5", name: "Woodgrove Bank",    users: 12,  seats: 15,  plan: "Pro Monthly", status: "expired", storage: "140 GB" },
-];
-
-const MOCK_USERS: UserRow[] = [
-  { id: "u1", name: "Alice Johnson", email: "alice@contoso.com",   org: "Contoso",        role: "Owner",   lastSeen: "Today",     licensed: true  },
-  { id: "u2", name: "Bob Smith",     email: "bob@fabrikam.com",    org: "Fabrikam",        role: "Admin",   lastSeen: "Yesterday", licensed: true  },
-  { id: "u3", name: "Carol White",   email: "carol@northwind.com", org: "Northwind",       role: "User",    lastSeen: "Jun 28",    licensed: false },
-  { id: "u4", name: "David Lee",     email: "david@contoso.com",   org: "Contoso",        role: "Manager", lastSeen: "Today",     licensed: true  },
-  { id: "u5", name: "Emma Davis",    email: "emma@adventure.com",  org: "Adventure Works", role: "User",    lastSeen: "Jun 25",    licensed: true  },
-];
-
-const MOCK_JOBS: JobRow[] = [
-  { id: "j1", type: "Backup",  user: "alice@contoso.com",   status: "completed", started: "Today 3:00 AM",  duration: "7m 12s", size: "1.2 GB" },
-  { id: "j2", type: "Cleanup", user: "bob@fabrikam.com",    status: "running",   started: "Today 9:45 AM",  duration: "—",      size: "—" },
-  { id: "j3", type: "Restore", user: "david@contoso.com",   status: "completed", started: "Yesterday",      duration: "3m 8s",  size: "420 MB" },
-  { id: "j4", type: "Backup",  user: "carol@northwind.com", status: "failed",    started: "Jun 28",         duration: "—",      size: "—" },
-  { id: "j5", type: "Backup",  user: "emma@adventure.com",  status: "completed", started: "Jun 27 3:00 AM", duration: "12m 4s", size: "2.1 GB" },
-];
-
-const MOCK_LOGS: LogRow[] = [
-  { id: "l1", action: "Backup Created",      user: "alice@contoso.com",   org: "Contoso",  ts: "Today 03:07 AM",  result: "success" },
-  { id: "l2", action: "User Login",          user: "bob@fabrikam.com",    org: "Fabrikam", ts: "Today 09:41 AM",  result: "success" },
-  { id: "l3", action: "Backup Failed",       user: "carol@northwind.com", org: "Northwind",ts: "Jun 28 03:00 AM", result: "error"   },
-  { id: "l4", action: "License Renewed",     user: "admin@contoso.com",   org: "Contoso",  ts: "Jun 27 12:00 PM", result: "success" },
-  { id: "l5", action: "Emails Deleted (142)",user: "david@contoso.com",   org: "Contoso",  ts: "Jun 26 02:30 PM", result: "success" },
-];
-
-const BACKUP_TREND = [
-  { day: "Mon", count: 48 }, { day: "Tue", count: 62 }, { day: "Wed", count: 55 },
-  { day: "Thu", count: 71 }, { day: "Fri", count: 69 }, { day: "Sat", count: 18 }, { day: "Sun", count: 12 },
-];
 
 const STATUS_CLS: Record<string, string> = {
   completed: "status-badge-success", running: "status-badge-info", failed: "status-badge-error",
@@ -189,10 +152,10 @@ export default function AdminPage() {
             <h1 className="text-xl font-black">Dashboard</h1>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: "Organizations",  value: "415",    color: "stat-blue"   },
-                { label: "Licensed Users", value: "12,847", color: "stat-purple" },
-                { label: "Backups Today",  value: "3,241",  color: "stat-green"  },
-                { label: "Failed Jobs",    value: "12",     color: "stat-red"    },
+                { label: "Organizations",  value: "0", color: "stat-blue"   },
+                { label: "Licensed Users", value: "0", color: "stat-purple" },
+                { label: "Backups Today",  value: "0", color: "stat-green"  },
+                { label: "Failed Jobs",    value: "0", color: "stat-red"    },
               ].map(({ label, value, color }) => (
                 <div key={label} className={`rounded-2xl p-4 ${color}`}>
                   <p className="text-2xl font-black">{value}</p>
@@ -202,51 +165,16 @@ export default function AdminPage() {
             </div>
             <div className="bg-white border border-border rounded-2xl p-4">
               <p className="text-sm font-black mb-4">Backups This Week</p>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={BACKUP_TREND} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                  <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="count" name="Backups" radius={[4, 4, 0, 0]}>
-                    {BACKUP_TREND.map((_, i) => <Cell key={i} fill={i === 3 ? "#0078d4" : "#93c4f0"} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-[180px] flex items-center justify-center text-xs text-muted-foreground">No backup data yet</div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white border border-border rounded-2xl p-4 space-y-3">
                 <p className="text-sm font-black">System Health</p>
-                {[
-                  { label: "API",     pct: 100, color: "bg-green-500"  },
-                  { label: "Storage", pct: 68,  color: "bg-blue-500"   },
-                  { label: "Queue",   pct: 12,  color: "bg-amber-500"  },
-                  { label: "DB",      pct: 34,  color: "bg-purple-500" },
-                ].map(({ label, pct, color }) => (
-                  <div key={label} className="space-y-1">
-                    <div className="flex justify-between text-xs"><span>{label}</span><span className="font-bold">{pct}%</span></div>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                ))}
+                <p className="text-xs text-muted-foreground">No data available</p>
               </div>
               <div className="bg-white border border-border rounded-2xl p-4">
                 <p className="text-sm font-black mb-3">Recent Jobs</p>
-                <div className="space-y-2">
-                  {MOCK_JOBS.slice(0, 4).map(j => {
-                    const StatusIcon = STATUS_ICON[j.status] ?? Clock;
-                    return (
-                      <div key={j.id} className="flex items-center gap-2">
-                        <StatusIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold truncate">{j.type} — {j.user.split("@")[0]}</p>
-                          <p className="text-[9px] text-muted-foreground">{j.started}</p>
-                        </div>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_CLS[j.status]}`}>{j.status}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <p className="text-xs text-muted-foreground">No jobs yet</p>
               </div>
             </div>
           </div>
@@ -266,23 +194,7 @@ export default function AdminPage() {
                   <tr>{["Organization","Users","Seats","Plan","Storage","Status"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {MOCK_ORGS.filter(o => o.name.toLowerCase().includes(search.toLowerCase())).map(org => {
-                    const StatusIcon = STATUS_ICON[org.status] ?? Clock;
-                    return (
-                      <tr key={org.id} className="hover:bg-muted/50">
-                        <td className="px-4 py-3 font-bold">{org.name}</td>
-                        <td className="px-4 py-3">{org.users}</td>
-                        <td className="px-4 py-3">{org.seats}</td>
-                        <td className="px-4 py-3">{org.plan}</td>
-                        <td className="px-4 py-3">{org.storage}</td>
-                        <td className="px-4 py-3">
-                          <span className={`flex items-center gap-1 w-fit text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLS[org.status]}`}>
-                            <StatusIcon className="w-3 h-3" />{org.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground text-xs">No organizations yet</td></tr>
                 </tbody>
               </table>
             </div>
@@ -303,20 +215,7 @@ export default function AdminPage() {
                   <tr>{["Name","Email","Organization","Role","Last Seen","License"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {MOCK_USERS.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.includes(search)).map(user => (
-                    <tr key={user.id} className="hover:bg-muted/50">
-                      <td className="px-4 py-3 font-bold">{user.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
-                      <td className="px-4 py-3">{user.org}</td>
-                      <td className="px-4 py-3"><span className="status-badge-info text-[10px] px-2 py-0.5 rounded-full font-bold">{user.role}</span></td>
-                      <td className="px-4 py-3 text-muted-foreground">{user.lastSeen}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${user.licensed ? "status-badge-success" : "status-badge-neutral"}`}>
-                          {user.licensed ? "Licensed" : "Unlicensed"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground text-xs">No users yet</td></tr>
                 </tbody>
               </table>
             </div>
@@ -341,16 +240,7 @@ export default function AdminPage() {
                   <tr>{["Type","User","Status","Started","Duration","Size"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {MOCK_JOBS.map(job => (
-                    <tr key={job.id} className="hover:bg-muted/50">
-                      <td className="px-4 py-3 font-bold">{job.type}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{job.user}</td>
-                      <td className="px-4 py-3"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLS[job.status]}`}>{job.status}</span></td>
-                      <td className="px-4 py-3 text-muted-foreground">{job.started}</td>
-                      <td className="px-4 py-3">{job.duration}</td>
-                      <td className="px-4 py-3">{job.size}</td>
-                    </tr>
-                  ))}
+                  <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground text-xs">No jobs yet</td></tr>
                 </tbody>
               </table>
             </div>
@@ -371,15 +261,7 @@ export default function AdminPage() {
                   <tr>{["Action","User","Organization","Timestamp","Result"].map(h => <th key={h} className="px-4 py-3 text-left font-bold">{h}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {MOCK_LOGS.map(log => (
-                    <tr key={log.id} className="hover:bg-muted/50">
-                      <td className="px-4 py-3 font-bold">{log.action}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{log.user}</td>
-                      <td className="px-4 py-3">{log.org}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{log.ts}</td>
-                      <td className="px-4 py-3"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLS[log.result]}`}>{log.result}</span></td>
-                    </tr>
-                  ))}
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground text-xs">No audit logs yet</td></tr>
                 </tbody>
               </table>
             </div>
