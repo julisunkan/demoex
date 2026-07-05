@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "node server/index.js & npx vite --config vite.config.ts --port 5000 --host 0.0.0.0",
     "build": "npx vite build --config vite.config.ts",
+    "start": "node server/index.js",
     "serve": "npx vite preview --config vite.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
