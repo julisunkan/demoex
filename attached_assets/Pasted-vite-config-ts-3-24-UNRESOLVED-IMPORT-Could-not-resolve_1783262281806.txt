@@ -1,0 +1,45 @@
+vite.config.ts (3:24) [UNRESOLVED_IMPORT] Could not resolve '@tailwindcss/vite' in vite.config.ts
+   ╭─[ vite.config.ts:3:25 ]
+   │
+ 3 │ import tailwindcss from "@tailwindcss/vite";
+   │                         ─────────┬─────────  
+   │                                  ╰─────────── Module not found, treating it as an external dependency
+───╯
+vite.config.ts (5:32) [UNRESOLVED_IMPORT] Could not resolve '@replit/vite-plugin-runtime-error-modal' in vite.config.ts
+   ╭─[ vite.config.ts:5:33 ]
+   │
+ 5 │ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+   │                                 ────────────────────┬────────────────────  
+   │                                                     ╰────────────────────── Module not found, treating it as an external dependency
+───╯
+vite.config.ts (16:23) [UNRESOLVED_IMPORT] Could not resolve '@replit/vite-plugin-cartographer' in vite.config.ts
+    ╭─[ vite.config.ts:16:24 ]
+    │
+ 16 │           await import("@replit/vite-plugin-cartographer").then((m) =>
+    │                        ─────────────────┬────────────────  
+    │                                         ╰────────────────── Module not found, treating it as an external dependency
+────╯
+vite.config.ts (19:23) [UNRESOLVED_IMPORT] Could not resolve '@replit/vite-plugin-dev-banner' in vite.config.ts
+    ╭─[ vite.config.ts:19:24 ]
+    │
+ 19 │           await import("@replit/vite-plugin-dev-banner").then((m) =>
+    │                        ────────────────┬───────────────  
+    │                                        ╰───────────────── Module not found, treating it as an external dependency
+────╯
+failed to load config from /opt/render/project/src/vite.config.ts
+error during build:
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /opt/render/project/src/node_modules/.vite-temp/vite.config.ts.timestamp-1783262236746-bb269a55071a9.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:784:25)
+    at moduleResolve (node:internal/modules/esm/resolve:873:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:724:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:762:56)
+    at #resolve (node:internal/modules/esm/loader:686:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:606:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:164:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+==> Build failed 😞
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
