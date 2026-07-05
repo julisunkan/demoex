@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { isInOutlook } from "@/lib/outlookContext";
+import { isConnected } from "@/lib/outlookContext";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -63,7 +63,6 @@ export default function BackupWizard({ isPro }: { isPro: boolean }) {
     staleTime: 120_000,
   });
 
-  const inOutlook = isInOutlook();
   const connected = mailboxStats?.connected ?? false;
   const folders   = mailboxStats?.folders ?? [];
 
@@ -76,8 +75,8 @@ export default function BackupWizard({ isPro }: { isPro: boolean }) {
   }
 
   async function startBackup() {
-    if (!inOutlook) {
-      toast({ title: "Not connected", description: "Open this add-in inside Outlook to run a backup.", variant: "destructive" });
+    if (!connected) {
+      toast({ title: "Not connected", description: "Sign in with Microsoft to run a backup.", variant: "destructive" });
       return;
     }
 
@@ -211,27 +210,19 @@ export default function BackupWizard({ isPro }: { isPro: boolean }) {
         {/* Step 1: Folders */}
         {step === 1 && (
           <div className="space-y-3 animate-fade-in-up">
-            {!inOutlook && (
-              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-amber-700">Open inside Outlook to see your real folders and email counts.</p>
-              </div>
-            )}
             <p className="text-xs text-muted-foreground">Select which folders to include in this backup.</p>
             {foldersLoading
               ? <div className="h-40 rounded-xl bg-muted animate-pulse" />
               : folders.length === 0
               ? <div className="py-4 text-center space-y-2">
-                  {inOutlook && !connected
+                  {!connected
                     ? <>
                         <div className="flex justify-center">
                           <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                         </div>
-                        <p className="text-xs text-muted-foreground">Connecting to Outlook…</p>
+                        <p className="text-xs text-muted-foreground">Connecting to mailbox…</p>
                       </>
-                    : <p className="text-xs text-muted-foreground">
-                        {connected ? "No folders found in your mailbox." : "Open inside Outlook to load your folders."}
-                      </p>
+                    : <p className="text-xs text-muted-foreground">No folders found in your mailbox.</p>
                   }
                 </div>
               : (
@@ -406,12 +397,6 @@ export default function BackupWizard({ isPro }: { isPro: boolean }) {
               <SummaryRow label="Incremental" value={incremental ? "✅ Enabled" : "Full backup"} />
               <SummaryRow label="Schedule"    value={SCHEDULES.find(s => s.id === schedule)?.label ?? schedule} />
             </div>
-            {!inOutlook && (
-              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-amber-700">You must open this add-in inside Outlook to run a real backup.</p>
-              </div>
-            )}
           </div>
         )}
       </div>

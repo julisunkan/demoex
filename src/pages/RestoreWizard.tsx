@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { isInOutlook } from "@/lib/outlookContext";
+import { useIsConnected } from "@/lib/outlookContext";
 import { apiRequest } from "@/lib/queryClient";
 import { Check, ChevronLeft, ChevronRight, RotateCcw, Archive, Loader2, FolderOpen, AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -49,7 +49,7 @@ export default function RestoreWizard() {
   const [conflict, setConflict] = useState("skip");
   const [restoreDest, setRestDest] = useState("original");
 
-  const inOutlook = isInOutlook();
+  const connected = useIsConnected();
 
   const { data: backups, isLoading: backupsLoading } = useQuery<BackupRecord[]>({
     queryKey:  ["/api/backup/list"],
@@ -59,8 +59,8 @@ export default function RestoreWizard() {
   const pickedBackup = (backups ?? []).find(b => b.id === selected);
 
   async function startRestore() {
-    if (!inOutlook) {
-      toast({ title: "Open inside Outlook to restore emails.", variant: "destructive" });
+    if (!connected) {
+      toast({ title: "Sign in with Microsoft to restore emails.", variant: "destructive" });
       return;
     }
     setRunning(true); setProgress(0);
@@ -184,12 +184,6 @@ export default function RestoreWizard() {
         {/* Step 1: Select Backup */}
         {step === 1 && (
           <div className="space-y-3 animate-fade-in-up">
-            {!inOutlook && (
-              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-amber-700">Open inside Outlook to restore emails to your mailbox.</p>
-              </div>
-            )}
             <p className="text-xs text-muted-foreground">Choose the backup to restore from.</p>
             {backupsLoading
               ? <div className="h-32 rounded-xl bg-muted animate-pulse" />

@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatExpiry, type SubscriptionInfo } from "@/lib/license";
-import { isInOutlook } from "@/lib/outlookContext";
 import { type Tab } from "./tab-types";
 import {
   Archive, RotateCcw, Trash2, BarChart3, CheckCircle2,
@@ -74,7 +73,6 @@ export default function Dashboard({ subscription, onNavigate, onOpenSettings }: 
 
   const isPro      = subscription?.subscribed ?? false;
   const connected  = stats?.connected ?? false;
-  const inOutlook  = isInOutlook();
 
   return (
     <div className="p-4 space-y-4 animate-fade-in-up">
@@ -84,14 +82,14 @@ export default function Dashboard({ subscription, onNavigate, onOpenSettings }: 
         <p className="text-xs text-muted-foreground">Your mailbox is protected and monitored.</p>
       </div>
 
-      {/* Not-in-Outlook banner */}
-      {!inOutlook && (
+      {/* Connecting banner — shown until the Graph token is confirmed */}
+      {!connected && !statsLoading && (
         <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-3 flex items-start gap-2.5">
           <AlertTriangle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-black text-blue-800">Open inside Outlook</p>
+            <p className="text-xs font-black text-blue-800">Connecting to mailbox…</p>
             <p className="text-[10px] text-blue-700">
-              Load this add-in from the Outlook task pane to connect to your real mailbox.
+              Sign in with Microsoft to connect to your real mailbox.
             </p>
           </div>
         </div>

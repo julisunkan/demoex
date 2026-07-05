@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
 import { BarChart3, TrendingUp, Users, AlertTriangle } from "lucide-react";
-import { isInOutlook, isMsalConfigured } from "@/lib/outlookContext";
+import { isMsalConfigured } from "@/lib/outlookContext";
 
 const COLORS = ["#0078d4", "#6264a7", "#107c10", "#e6a118", "#d13438", "#008272", "#8764b8"];
 
@@ -38,7 +38,6 @@ export default function Analytics({ isPro }: { isPro: boolean }) {
     staleTime: 120_000,
   });
 
-  const inOutlook = isInOutlook();
   const connected = data?.connected ?? false;
 
   if (isLoading) return (
@@ -62,12 +61,12 @@ export default function Analytics({ isPro }: { isPro: boolean }) {
       </div>
 
       {/* Not connected banner */}
-      {!inOutlook && (
+      {!connected && (
         <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3">
           <AlertTriangle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-black text-blue-800">Open inside Outlook</p>
-            <p className="text-[10px] text-blue-700">Load this add-in from the Outlook task pane to analyse your real mailbox.</p>
+            <p className="text-xs font-black text-blue-800">Connecting to mailbox…</p>
+            <p className="text-[10px] text-blue-700">Sign in with Microsoft to analyse your real mailbox.</p>
           </div>
         </div>
       )}
@@ -216,23 +215,18 @@ export default function Analytics({ isPro }: { isPro: boolean }) {
       {!connected && !isLoading && (
         <div className="rounded-2xl border border-border bg-muted/40 p-6 text-center space-y-2">
           <BarChart3 className="w-8 h-8 text-muted-foreground mx-auto" />
-          {inOutlook && !isMsalConfigured() ? (
+          {!isMsalConfigured() ? (
             <>
               <p className="text-sm font-black">Azure app not configured</p>
               <p className="text-[10px] text-muted-foreground">Set <code className="bg-muted px-1 rounded">VITE_AZURE_CLIENT_ID</code> in your Replit environment to connect to your mailbox.</p>
             </>
-          ) : inOutlook ? (
+          ) : (
             <>
-              <p className="text-sm font-black">Connecting to Outlook…</p>
+              <p className="text-sm font-black">Connecting to mailbox…</p>
               <p className="text-[10px] text-muted-foreground">Signing in to Microsoft Graph. A sign-in popup may appear.</p>
               <div className="flex justify-center pt-1">
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-black">No data yet</p>
-              <p className="text-[10px] text-muted-foreground">Open this add-in inside Outlook to analyse your real mailbox data.</p>
             </>
           )}
         </div>

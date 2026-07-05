@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { isInOutlook } from "@/lib/outlookContext";
+import { useIsConnected } from "@/lib/outlookContext";
 import { apiRequest } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,7 @@ export default function CleanupWizard({ isPro }: { isPro: boolean }) {
   const [selected, setSelected]       = useState<Set<string>>(new Set());
   const [confirm, setConfirm]         = useState(false);
 
-  const inOutlook = isInOutlook();
+  const connected = useIsConnected();
 
   function toggleEmail(id: string) {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -53,8 +53,8 @@ export default function CleanupWizard({ isPro }: { isPro: boolean }) {
   const totalSizeMB    = Math.round(selectedEmails.reduce((s, e) => s + (e.sizeMB ?? 0), 0) * 10) / 10;
 
   async function runScan() {
-    if (!inOutlook) {
-      toast({ title: "Open inside Outlook to scan your real mailbox.", variant: "destructive" });
+    if (!connected) {
+      toast({ title: "Sign in with Microsoft first to scan your mailbox.", variant: "destructive" });
       return;
     }
     setScanning(true);
@@ -86,8 +86,8 @@ export default function CleanupWizard({ isPro }: { isPro: boolean }) {
 
   async function runCleanup() {
     if (!confirm) { toast({ title: "Please confirm deletion", variant: "destructive" }); return; }
-    if (!inOutlook) {
-      toast({ title: "Open inside Outlook to delete emails.", variant: "destructive" });
+    if (!connected) {
+      toast({ title: "Sign in with Microsoft to delete emails.", variant: "destructive" });
       return;
     }
 
@@ -167,12 +167,6 @@ export default function CleanupWizard({ isPro }: { isPro: boolean }) {
         {/* Step 1: Filters */}
         {step === 1 && (
           <div className="space-y-3 animate-fade-in-up">
-            {!inOutlook && (
-              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-amber-700">Open inside Outlook to scan your real mailbox.</p>
-              </div>
-            )}
             <p className="text-xs text-muted-foreground">Configure which emails to find and delete.</p>
             <div className="space-y-2">
               <div>
