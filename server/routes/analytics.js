@@ -1,9 +1,8 @@
 import { Router } from "express";
-import { extractOutlookAuth, outlookFetch } from "../lib/graphProxy.js";
+import { extractOutlookAuth, graphFetch } from "../lib/graphProxy.js";
 
 const router = Router();
 
-// restUrl ends with "/api" — paths use "/v2.0/me/..."
 router.get("/", async (req, res) => {
   const auth = extractOutlookAuth(req);
 
@@ -20,9 +19,9 @@ router.get("/", async (req, res) => {
 
   try {
     // ── Folder sizes ──────────────────────────────────────────────────────────
-    const folderData = await outlookFetch(
-      auth.token, auth.restUrl,
-      "/v2.0/me/MailFolders?$top=50&$select=displayName,totalItemCount,sizeInBytes"
+    const folderData = await graphFetch(
+      auth.token,
+      "/me/mailFolders?$top=50&$select=displayName,totalItemCount,sizeInBytes"
     );
 
     const folderSizes = (folderData?.value ?? [])
@@ -36,9 +35,9 @@ router.get("/", async (req, res) => {
       .slice(0, 8);
 
     // ── Recent messages (sender stats + monthly trends) ───────────────────────
-    const msgData = await outlookFetch(
-      auth.token, auth.restUrl,
-      "/v2.0/me/messages?$top=250&$select=from,receivedDateTime,size,isRead"
+    const msgData = await graphFetch(
+      auth.token,
+      "/me/messages?$top=250&$select=from,receivedDateTime,size,isRead"
     );
     const messages = msgData?.value ?? [];
 
@@ -100,9 +99,6 @@ router.get("/", async (req, res) => {
     });
   } catch (err) {
     console.error("[analytics] error:", err.message);
-    // Always return 200 so React Query caches the result and the polling
-    // refetchInterval keeps running.  The frontend reads `connected: false`
-    // to know it should retry.
     return res.json({ error: err.message, connected: false,
       folderSizes: [], topSenders: [], monthlyTrends: [],
       storageBreakdown: [], healthInsights: {} });

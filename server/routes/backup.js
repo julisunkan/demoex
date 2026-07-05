@@ -1,11 +1,9 @@
 import { Router } from "express";
 import crypto      from "crypto";
-import { extractOutlookAuth, outlookFetch } from "../lib/graphProxy.js";
+import { extractOutlookAuth, graphFetch } from "../lib/graphProxy.js";
 import { readJson, writeJson } from "../lib/store.js";
 
 const router = Router();
-
-// restUrl ends with "/api" — paths use "/v2.0/me/..."
 
 /** GET /api/backup/list — all completed backups */
 router.get("/list", async (_req, res) => {
@@ -43,10 +41,10 @@ router.post("/start", async (req, res) => {
     const backedFolders = [];
 
     try {
-      // Discover all top-level mailbox folders
-      const foldersData = await outlookFetch(
-        auth.token, auth.restUrl,
-        "/v2.0/me/MailFolders?$top=50&$select=displayName,id,totalItemCount"
+      // Discover all top-level mailbox folders via Microsoft Graph
+      const foldersData = await graphFetch(
+        auth.token,
+        "/me/mailFolders?$top=50&$select=displayName,id,totalItemCount"
       );
       const allFolders = foldersData?.value ?? [];
 
@@ -66,8 +64,6 @@ router.post("/start", async (req, res) => {
           const oFilters = [];
           if (filters.dateFrom) oFilters.push(`receivedDateTime ge ${new Date(filters.dateFrom).toISOString().replace(/\.\d{3}Z$/, "Z")}`);
           if (filters.dateTo)   oFilters.push(`receivedDateTime le ${new Date(filters.dateTo).toISOString().replace(/\.\d{3}Z$/, "Z")}`);
-          // Note: contains() is OData v4 only; Outlook REST v2 uses v3.
-          // Sender filtering is applied in JS after the fetch (see below).
           if (filters.unreadOnly) oFilters.push("isRead eq false");
           if (filters.hasAttach)  oFilters.push("hasAttachments eq true");
 
@@ -78,14 +74,14 @@ router.post("/start", async (req, res) => {
           });
           if (oFilters.length) qs.set("$filter", oFilters.join(" and "));
 
-          const page = await outlookFetch(
-            auth.token, auth.restUrl,
-            `/v2.0/me/MailFolders/${encodeURIComponent(folder.id)}/messages?${qs}`
+          const page = await graphFetch(
+            auth.token,
+            `/me/mailFolders/${encodeURIComponent(folder.id)}/messages?${qs}`
           );
           let msgs = page?.value ?? [];
           if (!msgs.length) break;
 
-          // Apply sender filter JS-side (OData v3 / Outlook REST v2 does not support contains()).
+          // Apply sender filter JS-side
           if (filters.sender) {
             const s = filters.sender.toLowerCase();
             msgs = msgs.filter(m =>
@@ -131,13 +127,11 @@ router.post("/start", async (req, res) => {
         createdAt:   new Date().toISOString(),
       };
 
-      // Persist the email data and the manifest
       await writeJson(`backup_${backupId}.json`, backupData);
       const list = await readJson("backups.json", []);
       list.push(backupRecord);
       await writeJson("backups.json", list);
 
-      // Append job history
       const jobs = await readJson("jobs.json", []);
       jobs.push({ id: jobId, type: "backup", status: "completed", label, startedAt: new Date(startTime).toLocaleString(), duration: backupRecord.duration, size: sizeStr });
       await writeJson("jobs.json", jobs);

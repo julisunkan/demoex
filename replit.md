@@ -25,11 +25,28 @@ Visit `/admin`. With `ADMIN_PASSWORD` unset the portal is open to everyone (deve
 
 | Variable | Required | Description |
 |---|---|---|
+| `VITE_AZURE_CLIENT_ID` | **Yes** | Azure app registration client ID — enables Graph token (MSAL) |
+| `VITE_AZURE_TENANT_ID` | No | Azure tenant ID; defaults to `common` (multi-tenant) |
 | `ADMIN_PASSWORD` | Yes (prod) | Protects the admin portal |
 | `SESSION_SECRET` | Yes | Session signing key (already set) |
 | `VITE_API_URL` | Render only | Backend URL when frontend/backend are on separate domains |
 | `FRONTEND_URL` | Render only | Frontend URL for CORS allow-list in production |
 | `SMTP_*` | No | Email notifications |
+
+## Azure app registration (required for mailbox access)
+
+The add-in uses **Microsoft Graph API** (not the deprecated Outlook REST API).
+To connect to a real mailbox:
+
+1. Go to [Azure portal → App registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps) and create a new registration.
+2. Under **Authentication**, add a **Single-Page Application** redirect URI pointing to your Replit preview URL (e.g. `https://your-repl.replit.dev`).
+3. Under **API permissions**, add these **delegated** Microsoft Graph permissions:
+   - `Mail.Read`
+   - `Mail.ReadWrite`
+   - `User.Read`
+4. Copy the **Application (client) ID** and set it as `VITE_AZURE_CLIENT_ID` in your Replit environment secrets.
+
+When the add-in loads inside Outlook, MSAL will attempt a silent token refresh. If no session exists it shows a sign-in popup once — after that the session is cached.
 
 ## Render deployment
 

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from "recharts";
 import { BarChart3, TrendingUp, Users, AlertTriangle } from "lucide-react";
-import { isInOutlook } from "@/lib/outlookContext";
+import { isInOutlook, isMsalConfigured } from "@/lib/outlookContext";
 
 const COLORS = ["#0078d4", "#6264a7", "#107c10", "#e6a118", "#d13438", "#008272", "#8764b8"];
 
@@ -216,10 +216,15 @@ export default function Analytics({ isPro }: { isPro: boolean }) {
       {!connected && !isLoading && (
         <div className="rounded-2xl border border-border bg-muted/40 p-6 text-center space-y-2">
           <BarChart3 className="w-8 h-8 text-muted-foreground mx-auto" />
-          {inOutlook ? (
+          {inOutlook && !isMsalConfigured() ? (
+            <>
+              <p className="text-sm font-black">Azure app not configured</p>
+              <p className="text-[10px] text-muted-foreground">Set <code className="bg-muted px-1 rounded">VITE_AZURE_CLIENT_ID</code> in your Replit environment to connect to your mailbox.</p>
+            </>
+          ) : inOutlook ? (
             <>
               <p className="text-sm font-black">Connecting to Outlook…</p>
-              <p className="text-[10px] text-muted-foreground">Acquiring your mailbox token. This can take a few seconds.</p>
+              <p className="text-[10px] text-muted-foreground">Signing in to Microsoft Graph. A sign-in popup may appear.</p>
               <div className="flex justify-center pt-1">
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>

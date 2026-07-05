@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { extractOutlookAuth, outlookFetch } from "../lib/graphProxy.js";
+import { extractOutlookAuth, graphFetch } from "../lib/graphProxy.js";
 import { readJson, writeJson } from "../lib/store.js";
 
 const router = Router();
@@ -14,14 +14,13 @@ function isValidUUID(str) {
 }
 
 /**
- * Resolve a well-known folder name to its Outlook folder ID.
+ * Resolve a well-known folder name to its Graph folder ID.
  * Returns null if not found.
  */
-async function resolveFolderId(token, restUrl, name) {
-  const data = await outlookFetch(token, restUrl,
-    "/v2.0/me/MailFolders?$top=50&$select=displayName,id");
+async function resolveFolderId(token, name) {
+  const data    = await graphFetch(token, "/me/mailFolders?$top=50&$select=displayName,id");
   const folders = data?.value ?? [];
-  const lower = name.toLowerCase();
+  const lower   = name.toLowerCase();
   return (
     folders.find(f => f.displayName.toLowerCase() === lower) ??
     folders.find(f => f.displayName.toLowerCase().includes(lower))
@@ -32,10 +31,9 @@ async function resolveFolderId(token, restUrl, name) {
  * Check whether an Outlook message still exists by its original ID.
  * Returns true if found, false if 404.
  */
-async function messageExists(token, restUrl, msgId) {
+async function messageExists(token, msgId) {
   try {
-    await outlookFetch(token, restUrl,
-      `/v2.0/me/messages/${encodeURIComponent(msgId)}?$select=id`);
+    await graphFetch(token, `/me/messages/${encodeURIComponent(msgId)}?$select=id`);
     return true;
   } catch (err) {
     if (err.status === 404) return false;
@@ -44,7 +42,7 @@ async function messageExists(token, restUrl, msgId) {
 }
 
 /**
- * Build the minimal Outlook message body from stored backup metadata.
+ * Build the minimal Graph message body from stored backup metadata.
  */
 function buildMessagePayload(msg) {
   const payload = {
@@ -71,23 +69,21 @@ function buildMessagePayload(msg) {
  *
  * Returns "created" | "skipped" | "replaced".
  */
-async function restoreMessage(token, restUrl, msg, targetFolderId, conflict) {
+async function restoreMessage(token, msg, targetFolderId, conflict) {
   const path = targetFolderId
-    ? `/v2.0/me/MailFolders/${encodeURIComponent(targetFolderId)}/messages`
-    : "/v2.0/me/messages";
+    ? `/me/mailFolders/${encodeURIComponent(targetFolderId)}/messages`
+    : "/me/messages";
 
   if (conflict === "skip") {
-    if (await messageExists(token, restUrl, msg.id)) return "skipped";
+    if (await messageExists(token, msg.id)) return "skipped";
   } else if (conflict === "replace") {
-    if (await messageExists(token, restUrl, msg.id)) {
-      await outlookFetch(token, restUrl,
-        `/v2.0/me/messages/${encodeURIComponent(msg.id)}`,
-        { method: "DELETE" });
+    if (await messageExists(token, msg.id)) {
+      await graphFetch(token, `/me/messages/${encodeURIComponent(msg.id)}`, { method: "DELETE" });
     }
   }
   // "keep" falls straight through to create; "replace" lands here after delete.
 
-  await outlookFetch(token, restUrl, path, {
+  await graphFetch(token, path, {
     method: "POST",
     body:   JSON.stringify(buildMessagePayload(msg)),
   });
@@ -111,7 +107,6 @@ router.post("/start", async (req, res) => {
     return res.status(400).json({ error: "Invalid backupId format" });
   }
 
-  // Validate enum inputs to prevent unexpected behaviour.
   const validScopes     = ["full", "folder", "email"];
   const validConflicts  = ["skip", "replace", "keep"];
   const validDests      = ["original", "inbox", "archive"];
@@ -122,12 +117,12 @@ router.post("/start", async (req, res) => {
   let backupData;
   try {
     backupData = await readJson(`backup_${backupId}.json`, null);
-  } catch (err) {
+  } catch {
     return res.status(500).json({ error: "Failed to read backup file" });
   }
   if (!backupData) return res.status(404).json({ error: "Backup file not found" });
 
-  const jobId    = `restore_${Date.now()}`;
+  const jobId     = `restore_${Date.now()}`;
   const startTime = Date.now();
 
   jobProgress.set(jobId, { status: "running", progress: 0 });
@@ -138,10 +133,6 @@ router.post("/start", async (req, res) => {
     try {
       const folderNames = Object.keys(backupData.folders ?? {});
 
-      // Note: for scope="folder" and scope="email" the wizard does not yet send
-      // a sub-selection, so we restore all available data from the backup.
-      // When the wizard is extended with a folder/email picker, add filtering here.
-
       let created  = 0;
       let replaced = 0;
       let skipped  = 0;
@@ -150,11 +141,11 @@ router.post("/start", async (req, res) => {
       // Pre-resolve the destination folder ID once if not using "original".
       let fixedDestId = null;
       if (destination === "inbox") {
-        fixedDestId = await resolveFolderId(auth.token, auth.restUrl, "Inbox").catch(() => null);
+        fixedDestId = await resolveFolderId(auth.token, "Inbox").catch(() => null);
       } else if (destination === "archive") {
         fixedDestId = (
-          await resolveFolderId(auth.token, auth.restUrl, "Archive").catch(() => null) ??
-          await resolveFolderId(auth.token, auth.restUrl, "Archived Mail").catch(() => null)
+          await resolveFolderId(auth.token, "Archive").catch(() => null) ??
+          await resolveFolderId(auth.token, "Archived Mail").catch(() => null)
         );
       }
 
@@ -164,13 +155,13 @@ router.post("/start", async (req, res) => {
 
         let folderId = fixedDestId;
         if (destination === "original") {
-          folderId = await resolveFolderId(auth.token, auth.restUrl, folderName).catch(() => null);
+          folderId = await resolveFolderId(auth.token, folderName).catch(() => null);
         }
 
         for (const msg of messages) {
           try {
-            const outcome = await restoreMessage(auth.token, auth.restUrl, msg, folderId, conflict);
-            if (outcome === "created")  created++;
+            const outcome = await restoreMessage(auth.token, msg, folderId, conflict);
+            if (outcome === "created")       created++;
             else if (outcome === "replaced") replaced++;
             else skipped++;
           } catch (e) {
@@ -217,11 +208,9 @@ router.post("/start", async (req, res) => {
  * GET /api/restore/status/:jobId
  */
 router.get("/status/:jobId", async (req, res) => {
-  // Live progress from in-memory map first.
   const live = jobProgress.get(req.params.jobId);
   if (live) return res.json({ jobId: req.params.jobId, ...live });
 
-  // Fall back to persisted job history.
   try {
     const jobs = await readJson("jobs.json", []);
     const job  = jobs.find(j => j.id === req.params.jobId);
@@ -234,7 +223,6 @@ router.get("/status/:jobId", async (req, res) => {
     }
   } catch { /* ignore read errors */ }
 
-  // Unknown job — still starting up, keep client polling briefly.
   res.json({ jobId: req.params.jobId, status: "unknown", progress: 5 });
 });
 

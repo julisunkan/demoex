@@ -19,7 +19,7 @@ interface EmailItem {
   date:           string;
   sizeMB:         number;
   hasAttachments: boolean;
-  reason:         string;
+  category:       string;
 }
 
 export default function CleanupWizard({ isPro }: { isPro: boolean }) {
@@ -34,7 +34,6 @@ export default function CleanupWizard({ isPro }: { isPro: boolean }) {
   const [newsletters, setNewsletters]   = useState(true);
   const [promotional, setPromotional]   = useState(true);
   const [social, setSocial]             = useState(false);
-  const [backupFirst, setBackupFirst]   = useState(true);
   const [senderFilter, setSenderFilter] = useState("");
 
   // Scan results
@@ -95,13 +94,8 @@ export default function CleanupWizard({ isPro }: { isPro: boolean }) {
     setRunning(true); setProgress(0);
 
     try {
-      await apiRequest("POST", "/api/cleanup/start", {
-        emailIds:    selectedEmails.map(e => e.id),
-        backupFirst,
-        // Lightweight headers so the server can save a pre-deletion snapshot
-        emailMeta:   selectedEmails.map(e => ({
-          id: e.id, subject: e.subject, from: e.from, date: e.date, sizeMB: e.sizeMB,
-        })),
+      await apiRequest("POST", "/api/cleanup/delete", {
+        ids: selectedEmails.map(e => e.id),
       });
     } catch (err: unknown) {
       toast({ title: "Cleanup failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
@@ -205,13 +199,6 @@ export default function CleanupWizard({ isPro }: { isPro: boolean }) {
                   <Switch checked={state} onCheckedChange={set} disabled={pro && !isPro} />
                 </div>
               ))}
-              <div className="flex items-start gap-3 p-3 rounded-xl border border-border bg-white">
-                <div className="flex-1">
-                  <p className="text-xs font-bold">Backup Before Delete</p>
-                  <p className="text-[10px] text-muted-foreground">Recommended — create a backup archive first</p>
-                </div>
-                <Switch checked={backupFirst} onCheckedChange={setBackupFirst} />
-              </div>
             </div>
           </div>
         )}
@@ -267,7 +254,7 @@ export default function CleanupWizard({ isPro }: { isPro: boolean }) {
                             {email.sizeMB > 0 ? ` · ${email.sizeMB} MB` : ""}
                             {email.hasAttachments ? " · 📎" : ""}
                           </p>
-                          <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">{email.reason}</span>
+                          <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">{email.category}</span>
                         </div>
                       </label>
                     ))}
@@ -289,11 +276,9 @@ export default function CleanupWizard({ isPro }: { isPro: boolean }) {
                 {totalSizeMB > 0 && <>This frees approximately <strong>{totalSizeMB} MB</strong> of storage.</>}
               </p>
             </div>
-            {backupFirst && (
-              <div className="status-badge-info rounded-xl p-3 text-xs">
-                ✅ A backup will be created automatically before deletion.
-              </div>
-            )}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+              ⚠️ Tip: use the Backup tab to save a copy before deleting.
+            </div>
             <label className="flex items-start gap-3 p-3 rounded-xl border-2 border-border bg-white cursor-pointer">
               <input
                 type="checkbox"

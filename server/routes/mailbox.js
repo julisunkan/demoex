@@ -1,16 +1,13 @@
 import { Router } from "express";
-import { extractOutlookAuth, outlookFetch } from "../lib/graphProxy.js";
+import { extractOutlookAuth, graphFetch } from "../lib/graphProxy.js";
 import { readJson } from "../lib/store.js";
 
 const router = Router();
 
 /**
  * GET /api/mailbox/stats
- * Returns real mailbox statistics by querying the Outlook REST API.
- * Requires x-outlook-token and x-outlook-rest-url headers.
- *
- * Note: restUrl ends with "/api" (e.g. "https://outlook.office.com/api").
- * Paths therefore start with "/v2.0/me/...", not "/api/v2.0/me/...".
+ * Returns real mailbox statistics by querying Microsoft Graph.
+ * Requires x-outlook-token header (Graph access token via MSAL).
  */
 router.get("/stats", async (req, res) => {
   const auth = extractOutlookAuth(req);
@@ -29,10 +26,9 @@ router.get("/stats", async (req, res) => {
   }
 
   try {
-    const data = await outlookFetch(
+    const data = await graphFetch(
       auth.token,
-      auth.restUrl,
-      "/v2.0/me/MailFolders?$top=50&$select=displayName,totalItemCount,sizeInBytes,childFolderCount"
+      "/me/mailFolders?$top=50&$select=displayName,totalItemCount,sizeInBytes,childFolderCount"
     );
 
     const folders = (data?.value ?? []).map(f => ({
@@ -44,9 +40,8 @@ router.get("/stats", async (req, res) => {
     const totalEmails    = folders.reduce((s, f) => s + f.count, 0);
     const totalSizeBytes = folders.reduce((s, f) => s + f.sizeMB * 1024 * 1024, 0);
 
-    // Read real backup count from persisted store
-    const backups     = await readJson("backups.json", []);
-    const lastBackup  = backups.length
+    const backups    = await readJson("backups.json", []);
+    const lastBackup = backups.length
       ? backups[backups.length - 1].date
       : null;
 
@@ -54,7 +49,7 @@ router.get("/stats", async (req, res) => {
       connected:      true,
       totalSize:      totalSizeBytes,
       totalEmails,
-      storageUsedPct: null, // quota info not exposed by callback-token scope
+      storageUsedPct: null,
       lastBackup,
       nextBackup:     null,
       backupCount:    backups.length,
@@ -62,7 +57,6 @@ router.get("/stats", async (req, res) => {
     });
   } catch (err) {
     console.error("[mailbox] stats error:", err.message);
-    // Always 200 so React Query caches and polling continues.
     return res.json({
       connected: false, error: err.message,
       totalSize: 0, totalEmails: 0, storageUsedPct: 0,
