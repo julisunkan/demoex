@@ -112,6 +112,45 @@ export async function refreshOutlookToken(): Promise<OutlookCtx | null> {
   return initOutlook();
 }
 
+/**
+ * Starts a background retry loop that keeps trying to acquire the Outlook
+ * token every `intervalMs` milliseconds until it succeeds.
+ *
+ * Call `onConnected` as soon as a token is obtained; `onConnected` is
+ * expected to invalidate React Query caches so all pending queries re-run
+ * with the freshly-acquired auth headers.
+ *
+ * Returns a cleanup function — call it when the component unmounts.
+ */
+export function startOutlookRetry(
+  onConnected: () => void,
+  intervalMs = 3_000,
+): () => void {
+  if (!isInOutlook()) return () => {};          // not inside Outlook — no-op
+  if (_ctx) { onConnected(); return () => {}; } // already have token
+
+  let stopped  = false;
+  let fired    = false;   // ensure onConnected fires exactly once
+  let id: ReturnType<typeof setInterval> | null = null;
+
+  const tryConnect = async () => {
+    if (stopped || fired) return;
+    const ctx = await initOutlook();
+    if (ctx && !stopped && !fired) {
+      fired = true;
+      if (id !== null) { clearInterval(id); id = null; }
+      onConnected();
+    }
+  };
+
+  tryConnect();
+  id = setInterval(tryConnect, intervalMs);
+  return () => {
+    stopped = true;
+    if (id !== null) { clearInterval(id); id = null; }
+  };
+}
+
 export function getMailboxUserEmail(): string | null {
   try {
     if (!isInOutlook()) return null;

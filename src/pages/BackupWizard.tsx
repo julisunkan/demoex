@@ -221,9 +221,19 @@ export default function BackupWizard({ isPro }: { isPro: boolean }) {
             {foldersLoading
               ? <div className="h-40 rounded-xl bg-muted animate-pulse" />
               : folders.length === 0
-              ? <p className="text-xs text-muted-foreground py-4 text-center">
-                  {connected ? "No folders found in your mailbox." : "Connect to Outlook to load your folders."}
-                </p>
+              ? <div className="py-4 text-center space-y-2">
+                  {inOutlook && !connected
+                    ? <>
+                        <div className="flex justify-center">
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Connecting to Outlook…</p>
+                      </>
+                    : <p className="text-xs text-muted-foreground">
+                        {connected ? "No folders found in your mailbox." : "Open inside Outlook to load your folders."}
+                      </p>
+                  }
+                </div>
               : (
                 <div className="space-y-2">
                   {folders.map(f => (

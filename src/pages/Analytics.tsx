@@ -212,12 +212,24 @@ export default function Analytics({ isPro }: { isPro: boolean }) {
         </div>
       )}
 
-      {/* Empty state when not connected */}
+      {/* Empty / connecting state when not connected */}
       {!connected && !isLoading && (
         <div className="rounded-2xl border border-border bg-muted/40 p-6 text-center space-y-2">
           <BarChart3 className="w-8 h-8 text-muted-foreground mx-auto" />
-          <p className="text-sm font-black">No data yet</p>
-          <p className="text-[10px] text-muted-foreground">Open this add-in inside Outlook to analyse your real mailbox data.</p>
+          {inOutlook ? (
+            <>
+              <p className="text-sm font-black">Connecting to Outlook…</p>
+              <p className="text-[10px] text-muted-foreground">Acquiring your mailbox token. This can take a few seconds.</p>
+              <div className="flex justify-center pt-1">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-black">No data yet</p>
+              <p className="text-[10px] text-muted-foreground">Open this add-in inside Outlook to analyse your real mailbox data.</p>
+            </>
+          )}
         </div>
       )}
 

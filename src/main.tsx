@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Switch, Route } from "wouter";
 import { AppConfigProvider } from "./context/AppConfigContext";
 import { queryClient } from "./lib/queryClient";
-import { initOutlook } from "./lib/outlookContext";
+import { initOutlook, startOutlookRetry } from "./lib/outlookContext";
 import { Toaster } from "@/components/ui/toaster";
 import App from "./App";
 import LandingPage      from "./pages/landing";
@@ -43,10 +43,20 @@ function mountApp() {
 }
 
 async function bootstrap() {
-  // Fetch the Office.js callback token before mounting so that all API calls
-  // made during the first render already carry the Outlook auth headers.
-  await initOutlook();
+  // Attempt token acquisition before mount (best-effort, short timeout).
+  // If it fails we still mount and the retry loop below keeps trying.
+  await Promise.race([
+    initOutlook(),
+    new Promise(r => setTimeout(r, 2_000)), // don't block mount for > 2 s
+  ]);
   mountApp();
+
+  // After the React tree is live, keep retrying until we have a token.
+  // Once connected, invalidate all cached queries so they re-fetch with
+  // the correct Outlook auth headers.
+  startOutlookRetry(() => {
+    queryClient.invalidateQueries();
+  });
 }
 
 if (typeof Office !== "undefined" && Office.initialize !== undefined) {

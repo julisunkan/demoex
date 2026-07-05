@@ -62,8 +62,12 @@ router.get("/stats", async (req, res) => {
     });
   } catch (err) {
     console.error("[mailbox] stats error:", err.message);
-    const status = err.status === 401 ? 401 : err.status === 400 ? 400 : 502;
-    return res.status(status).json({ error: err.message, connected: false });
+    // Always 200 so React Query caches and polling continues.
+    return res.json({
+      connected: false, error: err.message,
+      totalSize: 0, totalEmails: 0, storageUsedPct: 0,
+      lastBackup: null, nextBackup: null, backupCount: 0, folders: [],
+    });
   }
 });
 

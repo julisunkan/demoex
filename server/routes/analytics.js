@@ -100,8 +100,12 @@ router.get("/", async (req, res) => {
     });
   } catch (err) {
     console.error("[analytics] error:", err.message);
-    const status = err.status === 401 ? 401 : err.status === 400 ? 400 : 502;
-    return res.status(status).json({ error: err.message, connected: false });
+    // Always return 200 so React Query caches the result and the polling
+    // refetchInterval keeps running.  The frontend reads `connected: false`
+    // to know it should retry.
+    return res.json({ error: err.message, connected: false,
+      folderSizes: [], topSenders: [], monthlyTrends: [],
+      storageBreakdown: [], healthInsights: {} });
   }
 });
 

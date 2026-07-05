@@ -95,8 +95,8 @@ router.get("/scan", async (req, res) => {
     return res.json({ connected: true, emails, total: emails.length });
   } catch (err) {
     console.error("[cleanup] scan error:", err.message);
-    const status = err.status === 401 ? 401 : err.status === 400 ? 400 : 502;
-    return res.status(status).json({ error: err.message, connected: false });
+    // Always 200 so React Query caches and polling continues.
+    return res.json({ error: err.message, connected: false, emails: [], total: 0 });
   }
 });
 
